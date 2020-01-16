@@ -12,7 +12,6 @@ namespace MonoDevelop.Xml.Editor.Classification
 {
 	[Export (typeof (ITaggerProvider))]
 	[TagType (typeof (IClassificationTag))]
-	[TagType (typeof (IStructureTag))]
 	[ContentType (XmlContentTypeNames.Xml)]
 	[ContentType (XmlContentTypeNames.Xsd)]
 	[ContentType (XmlContentTypeNames.Xslt)]
