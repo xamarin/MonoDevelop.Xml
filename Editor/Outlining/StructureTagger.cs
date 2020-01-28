@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.VisualStudio.Text;
+using Microsoft.VisualStudio.Text.Adornments;
 using Microsoft.VisualStudio.Text.Tagging;
 using MonoDevelop.Xml.Dom;
 using MonoDevelop.Xml.Editor.Completion;
@@ -66,7 +67,7 @@ namespace MonoDevelop.Xml.Editor.Tagging
 
 			foreach (var snapshotSpan in spans)
 			{
-				var nodes = root.GetNodesIntersectingRange(new TextSpan(snapshotSpan.Span.Start, snapshotSpan.Span.Length));
+				var nodes = GetNodesIntersectingRange(root, new TextSpan(snapshotSpan.Span.Start, snapshotSpan.Span.Length));
 				foreach (var node in nodes)
 				{
 					var nodeSpan = node.OuterSpan;
@@ -76,22 +77,68 @@ namespace MonoDevelop.Xml.Editor.Tagging
 					}
 
 					var outliningSpan = new Span(nodeSpan.Start, nodeSpan.Length);
-					var startLine = snapshot.GetLineNumberFromPosition(outliningSpan.Start);
-					var endLine = snapshot.GetLineNumberFromPosition(outliningSpan.End);
-					if (startLine == endLine)
+					var startLine = snapshot.GetLineFromPosition(outliningSpan.Start);
+					var endLine = snapshot.GetLineFromPosition(outliningSpan.End);
+					if (startLine.LineNumber == endLine.LineNumber)
 					{
 						// ignore single-line nodes 
 						continue;
 					}
 
+					var headerSpan = new Span(outliningSpan.Start, startLine.End.Position - outliningSpan.Start);
+					string firstLine = snapshot.GetText(headerSpan);
+					string collapseForm = firstLine;
+
 					var tagSnapshotSpan = new SnapshotSpan(snapshot, outliningSpan);
-					var structureTag = new StructureTag(snapshot, outliningSpan: outliningSpan, isCollapsible: true, collapsedForm: "...");
+					var structureTag = new StructureTag(
+						snapshot,
+						outliningSpan: outliningSpan,
+						headerSpan: headerSpan,
+						guideLineSpan: outliningSpan,
+						guideLineHorizontalAnchor: outliningSpan.Start,
+						type: PredefinedStructureTagTypes.Structural,
+						isCollapsible: true,
+						collapsedForm: collapseForm,
+						collapsedHintForm: snapshot.GetText(outliningSpan));
 					var tagSpan = new TagSpan<IStructureTag>(tagSnapshotSpan, structureTag);
 					resultList.Add(tagSpan);
 				}
 			}
 
 			return resultList;
+		}
+
+		private static IEnumerable<XNode> GetNodesIntersectingRange(XContainer root, TextSpan span)
+		{
+			if (root.OuterSpan.Intersects(span))
+			{
+				yield return root;
+			}
+
+			foreach (var child in root.Nodes)
+			{
+				if (child.OuterSpan.End < span.Start)
+				{
+					continue;
+				}
+
+				if (child.OuterSpan.Start >= span.End)
+				{
+					break;
+				}
+
+				if (child is XContainer childContainer)
+				{
+					foreach (var grandchild in GetNodesIntersectingRange(childContainer, span))
+					{
+						yield return grandchild;
+					}
+				}
+				else
+				{
+					yield return child;
+				}
+			}
 		}
 	}
 }
