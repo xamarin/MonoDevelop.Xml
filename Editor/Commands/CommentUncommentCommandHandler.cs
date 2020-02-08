@@ -176,7 +176,7 @@ namespace MonoDevelop.Xml.Editor.Commands
 			var commentSpans = new List<TextSpan> ();
 
 			foreach (var selectedSpan in selectedSpans) {
-				var desiredCommentSpan = GetDesiredCommentSpan (selectedSpan.Snapshot, selectedSpan);
+				var desiredCommentSpan = GetDesiredCommentSpan (selectedSpan);
 				commentSpans.AddRange (xmlDocumentSyntax.GetValidCommentSpans (desiredCommentSpan));
 			}
 
@@ -207,7 +207,7 @@ namespace MonoDevelop.Xml.Editor.Commands
 				}
 
 				if (allowLineUncomment) {
-					var desiredCommentSpan = GetDesiredCommentSpan (selectedSpan.Snapshot, selectedSpan);
+					var desiredCommentSpan = GetDesiredCommentSpan (selectedSpan);
 					commentedSpans.AddRange (xmlDocumentSyntax.GetCommentedSpans (desiredCommentSpan));
 				}
 			}
@@ -215,37 +215,38 @@ namespace MonoDevelop.Xml.Editor.Commands
 			return commentedSpans;
 		}
 
-		static TextSpan GetDesiredCommentSpan (ITextSnapshot snapshot, SnapshotSpan selectedSpan)
+		static TextSpan GetDesiredCommentSpan (SnapshotSpan selectedSpan)
 		{
-			if (selectedSpan.IsEmpty) {
-				// Comment line for empty selections (first to last non-whitespace character)
-				var line = selectedSpan.Snapshot.GetLineFromPosition (selectedSpan.Start);
-
-				int? start = null;
-				for (int i = line.Start; i < line.End.Position; i++) {
-					if (!IsWhiteSpace (snapshot[i])) {
-						start = i;
-						break;
-					}
-				}
-
-				if (start == null) {
-					return new TextSpan (selectedSpan.Start, 0);
-				} else {
-					int end = start.Value;
-					for (int i = line.End.Position - 1; i >= end; i--) {
-						if (!IsWhiteSpace (snapshot[i])) {
-							// need to add 1 since end is exclusive
-							end = i + 1;
-							break;
-						}
-					}
-
-					return TextSpan.FromBounds (start.Value, end);
-				}
-			} else {
+			ITextSnapshot snapshot = selectedSpan.Snapshot;
+			if (!selectedSpan.IsEmpty) {
 				return new TextSpan (selectedSpan.Start, selectedSpan.Length);
 			}
+
+			// Comment line for empty selections (first to last non-whitespace character)
+			var line = selectedSpan.Snapshot.GetLineFromPosition (selectedSpan.Start);
+
+			int? start = null;
+			for (int i = line.Start; i < line.End.Position; i++) {
+				if (!IsWhiteSpace (snapshot[i])) {
+					start = i;
+					break;
+				}
+			}
+
+			if (start == null) {
+				return new TextSpan (selectedSpan.Start, 0);
+			}
+
+			int end = start.Value;
+			for (int i = line.End.Position - 1; i >= end; i--) {
+				if (!IsWhiteSpace (snapshot[i])) {
+					// need to add 1 since end is exclusive
+					end = i + 1;
+					break;
+				}
+			}
+
+			return TextSpan.FromBounds (start.Value, end);
 		}
 
 		static bool IsWhiteSpace (char c)
@@ -339,21 +340,22 @@ namespace MonoDevelop.Xml.Editor.Commands
 
 		private static TextSpan GetCommentRegion (this XContainer node, int position, TextSpan span, bool isStart)
 		{
-			var commentNode = node.FindAtOffset (position);
+			var nodeAtPosition = node.FindAtOffset (position);
 
-			if (commentNode is XComment ||
-				commentNode is XElement) {
-				return commentNode.Span;
+			if (nodeAtPosition is XComment) {
+				return nodeAtPosition.Span;
+			}
+
+			if (nodeAtPosition is XElement element) {
+				var endSpan = element.ClosingTag;
+				if (endSpan == null) {
+					return nodeAtPosition.Span;
+				}
+
+				return new TextSpan (element.Span.Start, endSpan.Span.End - element.Span.Start);
 			}
 
 			return new TextSpan (position, 0);
-		}
-
-		public static bool CanContainComments (this XNode node)
-		{
-			return
-				node is XElement ||
-				node is XText;
 		}
 	}
 }
