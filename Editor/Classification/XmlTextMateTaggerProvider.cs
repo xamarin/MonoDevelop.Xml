@@ -17,14 +17,16 @@ namespace MonoDevelop.Xml.Editor.Classification
 	[ContentType (XmlContentTypeNames.Xslt)]
 	sealed class XmlTextMateTaggerProvider : ITaggerProvider
 	{
-		[Import]
+		[Import(AllowDefault = true)]
 		ICommonEditorAssetServiceFactory assetServiceFactory = null;
 
-		public ITagger<T> CreateTagger<T> (ITextBuffer buffer) where T : ITag =>
-			assetServiceFactory.GetOrCreate (buffer)
+		public ITagger<T> CreateTagger<T> (ITextBuffer buffer) where T : ITag
+		{
+			return assetServiceFactory?.GetOrCreate (buffer)
 			.FindAsset<ITaggerProvider> (
 				(metadata) => metadata.TagTypes.Any (tagType => typeof (T).IsAssignableFrom (tagType))
 			)
 			?.CreateTagger<T> (buffer);
+		}
 	}
 }
