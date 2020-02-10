@@ -28,6 +28,8 @@ namespace MonoDevelop.Xml.Editor.Commands
 		ICommandHandler<ToggleLineCommentCommandArgs>
 	{
 		const string Name = nameof (CommentUncommentCommandHandler);
+		const string OpenComment = "<!--";
+		const string CloseComment = "-->";
 
 		[Import]
 		internal ITextUndoHistoryRegistry undoHistoryRegistry { get; set; }
@@ -48,9 +50,6 @@ namespace MonoDevelop.Xml.Editor.Commands
 			Uncomment,
 			Toggle
 		}
-
-		const string OpenComment = "<!--";
-		const string CloseComment = "-->";
 
 		public bool ExecuteCommand (CommentSelectionCommandArgs args, CommandExecutionContext executionContext)
 			=> ExecuteCommandCore (args, executionContext, Operation.Comment);
@@ -316,46 +315,39 @@ namespace MonoDevelop.Xml.Editor.Commands
 
 		public static TextSpan GetValidCommentRegion (this XContainer node, TextSpan commentSpan)
 		{
-			var commentSpanStart = GetCommentStartRegion (node, commentSpan.Start, commentSpan);
+			var commentSpanStart = GetCommentRegion (node, commentSpan.Start, commentSpan, isStart: true);
 
 			if (commentSpan.Length == 0)
 				return commentSpanStart;
 
-			var commentSpanEnd = GetCommentEndRegion (node, commentSpan.End - 1, commentSpan);
+			var commentSpanEnd = GetCommentRegion (node, commentSpan.End - 1, commentSpan, isStart: false);
 
 			return TextSpan.FromBounds (
 				start: Math.Min (commentSpanStart.Start, commentSpanEnd.Start),
 				end: Math.Max (Math.Max (commentSpanStart.End, commentSpanEnd.End), commentSpan.End));
 		}
 
-		private static TextSpan GetCommentStartRegion (this XContainer node, int position, TextSpan span)
-		{
-			return GetCommentRegion (node, position, span, isStart: true);
-		}
-
-		private static TextSpan GetCommentEndRegion (this XContainer node, int position, TextSpan span)
-		{
-			return GetCommentRegion (node, position, span, isStart: false);
-		}
-
 		private static TextSpan GetCommentRegion (this XContainer node, int position, TextSpan span, bool isStart)
 		{
 			var nodeAtPosition = node.FindAtOffset (position);
 
-			if (nodeAtPosition is XComment) {
+			if (nodeAtPosition is XComment ||
+				nodeAtPosition is XProcessingInstruction) {
 				return nodeAtPosition.Span;
 			}
 
-			if (nodeAtPosition is XElement element) {
-				var endSpan = element.ClosingTag;
-				if (endSpan == null) {
-					return nodeAtPosition.Span;
-				}
-
-				return new TextSpan (element.Span.Start, endSpan.Span.End - element.Span.Start);
+			var nearestParentElement = nodeAtPosition.SelfAndParentsOfType<XElement> ().FirstOrDefault ();
+			if (nearestParentElement == null) {
+				return new TextSpan (position, 0);
 			}
 
-			return new TextSpan (position, 0);
+			var endSpan = nearestParentElement.ClosingTag;
+			if (endSpan == null) {
+				return nodeAtPosition.Span;
+			}
+
+			int start = nearestParentElement.Span.Start;
+			return new TextSpan (start, endSpan.Span.End - start);
 		}
 	}
 }

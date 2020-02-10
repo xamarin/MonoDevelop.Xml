@@ -22,9 +22,33 @@ namespace MonoDevelop.Xml.Tests
 		protected override (EditorEnvironment, EditorCatalog) InitializeEnvironment () => XmlTestEnvironment.EnsureInitialized ();
 
 		[Test]
-		[TestCase(@"[]<x>
+		[TestCase (@"[]<x>
 </x>", @"<!--<x>
 </x>-->")]
+		[TestCase (@"<x>[]
+</x>", @"<!--<x>
+</x>-->")]
+		[TestCase (@"[<x>]
+</x>", @"<!--<x>
+</x>-->")]
+		[TestCase (@"[<x>
+</x>]", @"<!--<x>
+</x>-->")]
+		[TestCase (@"<x>
+[]</x>", @"<!--<x>
+</x>-->")]
+		[TestCase (@"<x>
+  [<a></a>]
+</x>", @"<x>
+  <!--<a></a>-->
+</x>")]
+		[TestCase (@"[]<x />", @"<!--<x />-->")]
+		[TestCase (@"<x />[]", @"<!--<x />-->")]
+		[TestCase (@"<x
+[a]=""a""/>", @"<!--<x
+a=""a""/>-->")]
+		[TestCase (@"[]<?xml ?>", @"<!--<?xml ?>-->")]
+		[TestCase (@"[]<!--x-->", @"<!--x-->")]
 		public void TestComment (string sourceText, string expectedText)
 		{
 			var (text, spans) = GetTextAndSpans (sourceText);
