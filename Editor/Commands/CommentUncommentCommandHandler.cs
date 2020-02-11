@@ -218,7 +218,14 @@ namespace MonoDevelop.Xml.Editor.Commands
 		{
 			ITextSnapshot snapshot = selectedSpan.Snapshot;
 			if (!selectedSpan.IsEmpty) {
-				return new TextSpan (selectedSpan.Start, selectedSpan.Length);
+				int selectionLength = selectedSpan.Length;
+
+				// tweak the selection end to not include the last line break
+				while (selectionLength > 0 && IsLineBreak(snapshot[selectedSpan.Start + selectionLength - 1])) {
+					selectionLength--;
+				}
+
+				return new TextSpan (selectedSpan.Start, selectionLength);
 			}
 
 			// Comment line for empty selections (first to last non-whitespace character)
@@ -251,6 +258,11 @@ namespace MonoDevelop.Xml.Editor.Commands
 		static bool IsWhiteSpace (char c)
 		{
 			return c == ' ' || c == '\t' || (c > (char)128 && char.IsWhiteSpace (c));
+		}
+
+		static bool IsLineBreak (char c)
+		{
+			return c == '\n' || c == '\r';
 		}
 	}
 

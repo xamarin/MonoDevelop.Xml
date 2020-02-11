@@ -126,6 +126,14 @@ a=""a""/>-->")]
   more text
 <x/>")]
 
+		[TestCase (@"<x>
+[  <a/>
+  <a/>
+]<x/>", @"<x>
+<!--  <a/>
+  <a/>-->
+<x/>")]
+
 		public void TestComment (string sourceText, string expectedText, bool toggle = true)
 		{
 			var (buffer, snapshotSpans, document) = GetBufferSpansAndDocument (sourceText);
