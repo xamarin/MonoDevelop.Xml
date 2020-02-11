@@ -227,12 +227,12 @@ namespace MonoDevelop.Xml.Dom
 			return null;
 		}
 
-		public static void VisitChildren (XNode node, Action<XNode> action)
+		public static void VisitSelfAndChildren (this XNode node, Action<XNode> action)
 		{
 			action (node);
 			if (node is XContainer container) {
 				foreach (var child in container.Nodes) {
-					VisitChildren (child, action);
+					VisitSelfAndChildren (child, action);
 				}
 			}
 		}

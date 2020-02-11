@@ -64,6 +64,14 @@ namespace MonoDevelop.Xml.Tests
   <!--c-->
 </x>")]
 
+		[TestCase (@"[]<x>
+  <a></a>
+  <!--c-->
+</x>", @"<!--<x>
+  <a></a>
+  --><!--c--><!--
+</x>-->", false)]
+
 		[TestCase (@"[]<x />", @"<!--<x />-->")]
 
 		[TestCase (@"<x />[]", @"<!--<x />-->")]
@@ -117,6 +125,7 @@ a=""a""/>-->")]
   <a/>-->
   more text
 <x/>")]
+
 		public void TestComment (string sourceText, string expectedText, bool toggle = true)
 		{
 			var (buffer, snapshotSpans, document) = GetBufferSpansAndDocument (sourceText);
@@ -152,6 +161,13 @@ a=""a""/>-->")]
 </x>", @"<x>
    text 
 </x>")]
+
+		[TestCase (@"[]<!--<x>
+  --><!-- text --><!--
+</x>-->", @"<x>
+  <!-- text --><!--
+</x>-->", false)]
+
 		public void TestUncomment (string sourceText, string expectedText, bool toggle = true)
 		{
 			var (buffer, snapshotSpans, document) = GetBufferSpansAndDocument (sourceText);

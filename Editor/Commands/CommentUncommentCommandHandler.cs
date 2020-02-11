@@ -275,25 +275,27 @@ namespace MonoDevelop.Xml.Editor.Commands
 
 			// Creates comments such that current comments are excluded
 			var parentNode = node.GetNodeContainingRange (validCommentRegion);
-			if (parentNode is XContainer container) {
-				foreach (var child in container.Nodes) {
-					if (child is XComment comment) {
-						var commentNodeSpan = comment.Span;
-						if (returnComments)
-							commentSpans.Add (commentNodeSpan);
-						else {
-							var validCommentSpan = TextSpan.FromBounds (currentStart, commentNodeSpan.Start);
-							if (validCommentSpan.Length != 0) {
-								commentSpans.Add (validCommentSpan);
-							}
 
-							currentStart = commentNodeSpan.End;
+			parentNode.VisitSelfAndChildren (child => {
+				if (child is XComment comment) {
+					// ignore comments outside our range
+					if (!comment.Span.Intersects(validCommentRegion)) {
+						return;
+					}
+
+					var commentNodeSpan = comment.Span;
+					if (returnComments)
+						commentSpans.Add (commentNodeSpan);
+					else {
+						var validCommentSpan = TextSpan.FromBounds (currentStart, commentNodeSpan.Start);
+						if (validCommentSpan.Length != 0) {
+							commentSpans.Add (validCommentSpan);
 						}
+
+						currentStart = commentNodeSpan.End;
 					}
 				}
-			} else if (parentNode is XComment comment && returnComments) {
-				commentSpans.Add (comment.Span);
-			}
+			});
 
 			if (!returnComments) {
 				if (currentStart <= validCommentRegion.End) {
