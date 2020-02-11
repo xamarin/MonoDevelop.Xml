@@ -266,16 +266,6 @@ namespace MonoDevelop.Xml.Editor.Commands
 			return GetCommentSpans (node, commentSpan, returnComments: true);
 		}
 
-		static void VisitChildren (XNode node, Action<XNode> action)
-		{
-			action (node);
-			if (node is XContainer container) {
-				foreach (var child in container.Nodes) {
-					VisitChildren (child, action);
-				}
-			}
-		}
-
 		static IEnumerable<TextSpan> GetCommentSpans (this XContainer node, TextSpan commentSpan, bool returnComments)
 		{
 			var commentSpans = new List<TextSpan> ();
@@ -284,21 +274,26 @@ namespace MonoDevelop.Xml.Editor.Commands
 			int currentStart = validCommentRegion.Start;
 
 			// Creates comments such that current comments are excluded
-			VisitChildren (node, n => {
-				if (n is XComment comment) {
-					var commentNodeSpan = n.Span;
-					if (returnComments)
-						commentSpans.Add (commentNodeSpan);
-					else {
-						var validCommentSpan = TextSpan.FromBounds (currentStart, commentNodeSpan.Start);
-						if (validCommentSpan.Length != 0) {
-							commentSpans.Add (validCommentSpan);
-						}
+			var parentNode = node.GetNodeContainingRange (validCommentRegion);
+			if (parentNode is XContainer container) {
+				foreach (var child in container.Nodes) {
+					if (child is XComment comment) {
+						var commentNodeSpan = comment.Span;
+						if (returnComments)
+							commentSpans.Add (commentNodeSpan);
+						else {
+							var validCommentSpan = TextSpan.FromBounds (currentStart, commentNodeSpan.Start);
+							if (validCommentSpan.Length != 0) {
+								commentSpans.Add (validCommentSpan);
+							}
 
-						currentStart = commentNodeSpan.End;
+							currentStart = commentNodeSpan.End;
+						}
 					}
 				}
-			});
+			} else if (parentNode is XComment comment && returnComments) {
+				commentSpans.Add (comment.Span);
+			}
 
 			if (!returnComments) {
 				if (currentStart <= validCommentRegion.End) {

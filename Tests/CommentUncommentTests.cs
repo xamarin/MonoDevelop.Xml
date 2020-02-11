@@ -50,6 +50,20 @@ namespace MonoDevelop.Xml.Tests
   <!--<a></a>-->
 </x>")]
 
+		[TestCase (@"<x>
+  <a></a>[]
+</x>", @"<x>
+  <!--<a></a>-->
+</x>")]
+
+		[TestCase (@"<x>
+  <a></a>[]
+  <!--c-->
+</x>", @"<x>
+  <!--<a></a>-->
+  <!--c-->
+</x>")]
+
 		[TestCase (@"[]<x />", @"<!--<x />-->")]
 
 		[TestCase (@"<x />[]", @"<!--<x />-->")]
