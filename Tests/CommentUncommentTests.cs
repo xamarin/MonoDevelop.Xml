@@ -60,7 +60,7 @@ a=""a""/>-->")]
 
 		[TestCase (@"[]<?xml ?>", @"<!--<?xml ?>-->")]
 
-		[TestCase (@"[]<!--x-->", @"<!--x-->")]
+		[TestCase (@"[]<!--x-->", @"<!--x-->", false)]
 
 		[TestCase (@"[<x/>
 <x/>]", @"<!--<x/>
@@ -103,11 +103,62 @@ a=""a""/>-->")]
   <a/>-->
   more text
 <x/>")]
-		public void TestComment (string sourceText, string expectedText)
+		public void TestComment (string sourceText, string expectedText, bool toggle = true)
 		{
 			var (buffer, snapshotSpans, document) = GetBufferSpansAndDocument (sourceText);
 
 			CommentUncommentCommandHandler.CommentSelection (buffer, snapshotSpans, document);
+
+			var actualText = buffer.CurrentSnapshot.GetText ();
+
+			Assert.AreEqual (expectedText, actualText);
+
+			// toggle should also work in all scenarios for comment
+			if (toggle) {
+				TestToggle (sourceText, expectedText);
+			}
+		}
+
+		[Test]
+
+		[TestCase (@"[]<!--<x>
+</x>-->", @"<x>
+</x>")]
+
+		[TestCase (@"[<!--<x>
+</x>-->]", @"<x>
+</x>")]
+
+		[TestCase (@"[<x>
+</x>]", @"<x>
+</x>", false)]
+
+		[TestCase (@"<x>
+  [<!-- text -->]
+</x>", @"<x>
+   text 
+</x>")]
+		public void TestUncomment (string sourceText, string expectedText, bool toggle = true)
+		{
+			var (buffer, snapshotSpans, document) = GetBufferSpansAndDocument (sourceText);
+
+			CommentUncommentCommandHandler.UncommentSelection (buffer, snapshotSpans, document);
+
+			var actualText = buffer.CurrentSnapshot.GetText ();
+
+			Assert.AreEqual (expectedText, actualText);
+
+			// toggle should also work in all scenarios for uncomment
+			if (toggle) {
+				TestToggle (sourceText, expectedText);
+			}
+		}
+
+		void TestToggle (string sourceText, string expectedText)
+		{
+			var (buffer, snapshotSpans, document) = GetBufferSpansAndDocument (sourceText);
+
+			CommentUncommentCommandHandler.ToggleCommentSelection (buffer, snapshotSpans, document);
 
 			var actualText = buffer.CurrentSnapshot.GetText ();
 
