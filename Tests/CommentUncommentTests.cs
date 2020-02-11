@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 using Microsoft.VisualStudio.MiniEditor;
 using Microsoft.VisualStudio.Text;
+using MonoDevelop.Xml.Dom;
 using MonoDevelop.Xml.Editor;
 using MonoDevelop.Xml.Editor.Commands;
 using MonoDevelop.Xml.Editor.Completion;
@@ -22,46 +23,107 @@ namespace MonoDevelop.Xml.Tests
 		protected override (EditorEnvironment, EditorCatalog) InitializeEnvironment () => XmlTestEnvironment.EnsureInitialized ();
 
 		[Test]
+
 		[TestCase (@"[]<x>
 </x>", @"<!--<x>
 </x>-->")]
+
 		[TestCase (@"<x>[]
 </x>", @"<!--<x>
 </x>-->")]
+
 		[TestCase (@"[<x>]
 </x>", @"<!--<x>
 </x>-->")]
+
 		[TestCase (@"[<x>
 </x>]", @"<!--<x>
 </x>-->")]
+
 		[TestCase (@"<x>
 []</x>", @"<!--<x>
 </x>-->")]
+
 		[TestCase (@"<x>
   [<a></a>]
 </x>", @"<x>
   <!--<a></a>-->
 </x>")]
+
 		[TestCase (@"[]<x />", @"<!--<x />-->")]
+
 		[TestCase (@"<x />[]", @"<!--<x />-->")]
+
 		[TestCase (@"<x
 [a]=""a""/>", @"<!--<x
 a=""a""/>-->")]
+
 		[TestCase (@"[]<?xml ?>", @"<!--<?xml ?>-->")]
+
 		[TestCase (@"[]<!--x-->", @"<!--x-->")]
+
+		[TestCase (@"[<x/>
+<x/>]", @"<!--<x/>
+<x/>-->")]
+
+		[TestCase (@"<[x/>
+<]x/>", @"<!--<x/>
+<x/>-->")]
+
+		[TestCase (@"<x>
+  [text]
+<x/>", @"<x>
+  <!--text-->
+<x/>")]
+
+		[TestCase (@"<x>
+  [text]
+  more text
+<x/>", @"<x>
+  <!--text-->
+  more text
+<x/>")]
+
+		[TestCase (@"<x>
+  text
+  [<a/>]
+  more text
+<x/>", @"<x>
+  text
+  <!--<a/>-->
+  more text
+<x/>")]
+
+		[TestCase (@"<x>
+  [text
+  <a/>]
+  more text
+<x/>", @"<x>
+  <!--text
+  <a/>-->
+  more text
+<x/>")]
 		public void TestComment (string sourceText, string expectedText)
+		{
+			var (buffer, snapshotSpans, document) = GetBufferSpansAndDocument (sourceText);
+
+			CommentUncommentCommandHandler.CommentSelection (buffer, snapshotSpans, document);
+
+			var actualText = buffer.CurrentSnapshot.GetText ();
+
+			Assert.AreEqual (expectedText, actualText);
+		}
+
+		(ITextBuffer buffer, NormalizedSnapshotSpanCollection snapshotSpans, XDocument document) GetBufferSpansAndDocument (string sourceText)
 		{
 			var (text, spans) = GetTextAndSpans (sourceText);
 			var buffer = CreateTextBuffer (text);
 			var parser = XmlBackgroundParser.GetParser<XmlBackgroundParser> (buffer);
 
 			var snapshotSpans = new NormalizedSnapshotSpanCollection (buffer.CurrentSnapshot, spans);
+			var document = parser.GetOrProcessAsync (buffer.CurrentSnapshot, default).Result.XDocument;
 
-			CommentUncommentCommandHandler.CommentSelection (buffer, snapshotSpans, parser.GetOrProcessAsync (buffer.CurrentSnapshot, default).Result.XDocument);
-
-			var actualText = buffer.CurrentSnapshot.GetText ();
-
-			Assert.AreEqual (expectedText, actualText);
+			return (buffer, snapshotSpans, document);
 		}
 
 		(string text, NormalizedSpanCollection spans) GetTextAndSpans(string textWithSpans)

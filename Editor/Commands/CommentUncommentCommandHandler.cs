@@ -222,7 +222,7 @@ namespace MonoDevelop.Xml.Editor.Commands
 			}
 
 			// Comment line for empty selections (first to last non-whitespace character)
-			var line = selectedSpan.Snapshot.GetLineFromPosition (selectedSpan.Start);
+			var line = snapshot.GetLineFromPosition (selectedSpan.Start);
 
 			int? start = null;
 			for (int i = line.Start; i < line.End.Position; i++) {
@@ -276,7 +276,7 @@ namespace MonoDevelop.Xml.Editor.Commands
 			}
 		}
 
-		private static IEnumerable<TextSpan> GetCommentSpans (this XContainer node, TextSpan commentSpan, bool returnComments)
+		static IEnumerable<TextSpan> GetCommentSpans (this XContainer node, TextSpan commentSpan, bool returnComments)
 		{
 			var commentSpans = new List<TextSpan> ();
 
@@ -315,21 +315,27 @@ namespace MonoDevelop.Xml.Editor.Commands
 
 		public static TextSpan GetValidCommentRegion (this XContainer node, TextSpan commentSpan)
 		{
-			var commentSpanStart = GetCommentRegion (node, commentSpan.Start, commentSpan, isStart: true);
+			var commentSpanStart = GetCommentRegion (node, commentSpan.Start, commentSpan);
 
 			if (commentSpan.Length == 0)
 				return commentSpanStart;
 
-			var commentSpanEnd = GetCommentRegion (node, commentSpan.End - 1, commentSpan, isStart: false);
+			var commentSpanEnd = GetCommentRegion (node, commentSpan.End - 1, commentSpan);
 
 			return TextSpan.FromBounds (
 				start: Math.Min (commentSpanStart.Start, commentSpanEnd.Start),
 				end: Math.Max (Math.Max (commentSpanStart.End, commentSpanEnd.End), commentSpan.End));
 		}
 
-		private static TextSpan GetCommentRegion (this XContainer node, int position, TextSpan span, bool isStart)
+		static TextSpan GetCommentRegion (this XContainer node, int position, TextSpan span)
 		{
 			var nodeAtPosition = node.FindAtOffset (position);
+
+			// if the selection starts or ends in text, we want to preserve the 
+			// exact span the user has selected and split the text at that boundary
+			if (nodeAtPosition is XText) {
+				return span;
+			}
 
 			if (nodeAtPosition is XComment ||
 				nodeAtPosition is XProcessingInstruction) {
