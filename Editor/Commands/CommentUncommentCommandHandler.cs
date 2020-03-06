@@ -174,11 +174,14 @@ namespace MonoDevelop.Xml.Editor.Commands
 						leadingWhitespace = new string (' ', virtualPoint.VirtualSpaces);
 					}
 
-					edit.Insert (virtualPoint.Position, leadingWhitespace);
-					edit.Insert (virtualPoint.Position, OpenComment);
-					edit.Insert (virtualPoint.Position, "  ");
-					edit.Insert (virtualPoint.Position, CloseComment);
+					if (leadingWhitespace.Length > 0) {
+						edit.Insert (virtualPoint.Position, leadingWhitespace);
+					}
 				}
+
+				edit.Insert (virtualPoint.Position, OpenComment);
+				edit.Insert (virtualPoint.Position, "  ");
+				edit.Insert (virtualPoint.Position, CloseComment);
 			}
 		}
 
@@ -217,22 +220,12 @@ namespace MonoDevelop.Xml.Editor.Commands
 		public static void ToggleCommentSelection (ITextBuffer textBuffer, IEnumerable<VirtualSnapshotSpan> selectedSpans, XDocument xmlDocumentSyntax)
 		{
 			var commentedSpans = GetCommentedSpansInSelection (xmlDocumentSyntax, selectedSpans);
-			var commentableSpans = GetCommentableSpansInSelection (xmlDocumentSyntax, selectedSpans.Select (s => s.SnapshotSpan));
-
-			// Remove already commented blocks from the commentable spans
-			var normalizedCommentedSpans = new NormalizedSnapshotSpanCollection (commentedSpans);
-			commentableSpans = new NormalizedSnapshotSpanCollection (commentableSpans
-				.Where (cs => !normalizedCommentedSpans.OverlapsWith (cs))
-				.ToList ());
-			if (!commentedSpans.Any () && !commentableSpans.Any ()) {
+			if (!commentedSpans.Any()) {
+				CommentSelection (textBuffer, selectedSpans, xmlDocumentSyntax);
 				return;
 			}
 
-			using (var edit = textBuffer.CreateEdit ()) {
-				UncommentSpans (edit, commentedSpans);
-				CommentSpans (edit, commentableSpans);
-				edit.Apply ();
-			}
+			UncommentSelection (textBuffer, selectedSpans, xmlDocumentSyntax);
 		}
 
 		static NormalizedSnapshotSpanCollection GetCommentableSpansInSelection (XDocument xmlDocumentSyntax, IEnumerable<SnapshotSpan> selectedSpans)

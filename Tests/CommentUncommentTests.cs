@@ -19,6 +19,8 @@ namespace MonoDevelop.Xml.Tests
 	[TestFixture]
 	public class CommentUncommentTests : EditorTestBase
 	{
+		public const char VirtualSpaceMarker = '→';
+
 		protected override string ContentTypeName => XmlContentTypeNames.XmlCore;
 
 		protected override (EditorEnvironment, EditorCatalog) InitializeEnvironment () => XmlTestEnvironment.EnsureInitialized ();
@@ -135,6 +137,18 @@ a=""a""/>-->")]
   <a/>-->
 <x/>")]
 
+		[TestCase (@"<x>
+  []
+<x/>", @"<x>
+  <!--  -->
+<x/>")]
+
+		[TestCase (@"<x>
+→→[]
+<x/>", @"<x>
+  <!--  -->
+<x/>")]
+
 		public void TestComment (string sourceText, string expectedText, bool toggle = true)
 		{
 			var (buffer, snapshotSpans, document) = GetBufferSpansAndDocument (sourceText);
@@ -238,7 +252,7 @@ a=""a""/>-->")]
 			int virtualSpacesAtStart = 0;
 			for (int i = 0; i < textWithSpans.Length; i++) {
 				char ch = textWithSpans[i];
-				if (ch == '→') {
+				if (ch == VirtualSpaceMarker) {
 					virtualSpace++;
 					continue;
 				}
@@ -256,9 +270,8 @@ a=""a""/>-->")]
 				} else {
 					sb.Append (ch);
 					index++;
+					virtualSpace = 0;
 				}
-
-				virtualSpace = 0;
 			}
 
 			return (sb.ToString(), spans);
