@@ -195,7 +195,6 @@ a=""a""/>-->")]
 
 		void TestToggle (string sourceText, string expectedText)
 		{
-			return;
 			var (buffer, snapshotSpans, document) = GetBufferSpansAndDocument (sourceText);
 
 			CommentUncommentCommandHandler.ToggleCommentSelection (buffer, snapshotSpans, document);

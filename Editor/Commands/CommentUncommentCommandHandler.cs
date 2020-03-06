@@ -193,7 +193,7 @@ namespace MonoDevelop.Xml.Editor.Commands
 		public static void UncommentSelection (ITextBuffer textBuffer, IEnumerable<VirtualSnapshotSpan> selectedSpans, XDocument xmlDocumentSyntax)
 		{
 			var commentedSpans = GetCommentedSpansInSelection (xmlDocumentSyntax, selectedSpans);
-			if (commentedSpans == null || !commentedSpans.Any()) {
+			if (commentedSpans == null || !commentedSpans.Any ()) {
 				return;
 			}
 
@@ -217,14 +217,14 @@ namespace MonoDevelop.Xml.Editor.Commands
 		public static void ToggleCommentSelection (ITextBuffer textBuffer, IEnumerable<VirtualSnapshotSpan> selectedSpans, XDocument xmlDocumentSyntax)
 		{
 			var commentedSpans = GetCommentedSpansInSelection (xmlDocumentSyntax, selectedSpans);
-			var commentableSpans = GetCommentableSpansInSelection (xmlDocumentSyntax, selectedSpans.Select(s => s.SnapshotSpan));
+			var commentableSpans = GetCommentableSpansInSelection (xmlDocumentSyntax, selectedSpans.Select (s => s.SnapshotSpan));
 
 			// Remove already commented blocks from the commentable spans
-			var normalizedCommentedSpans = new NormalizedSnapshotSpanCollection(commentedSpans);
+			var normalizedCommentedSpans = new NormalizedSnapshotSpanCollection (commentedSpans);
 			commentableSpans = new NormalizedSnapshotSpanCollection (commentableSpans
 				.Where (cs => !normalizedCommentedSpans.OverlapsWith (cs))
 				.ToList ());
-			if (!commentedSpans.Any() && !commentableSpans.Any()) {
+			if (!commentedSpans.Any () && !commentableSpans.Any ()) {
 				return;
 			}
 
@@ -240,7 +240,7 @@ namespace MonoDevelop.Xml.Editor.Commands
 			var commentSpans = new List<SnapshotSpan> ();
 			var snapshot = selectedSpans.First ().Snapshot;
 
-			var validSpans = xmlDocumentSyntax.GetValidCommentSpans (selectedSpans.Select(s => s.Span));
+			var validSpans = xmlDocumentSyntax.GetValidCommentSpans (selectedSpans.Select (s => GetDesiredCommentSpan (s).ToSpan ()));
 
 			foreach (var singleValidSpan in validSpans) {
 				var snapshotSpan = new SnapshotSpan (snapshot, new Span (singleValidSpan.Start, singleValidSpan.Length));
@@ -278,7 +278,7 @@ namespace MonoDevelop.Xml.Editor.Commands
 
 				if (allowLineUncomment) {
 					var desiredCommentSpan = GetDesiredCommentSpan (selectedSpan.SnapshotSpan);
-					var commentedSpans2 = xmlDocumentSyntax.GetCommentedSpans (new[] { desiredCommentSpan.ToSpan() });
+					var commentedSpans2 = xmlDocumentSyntax.GetCommentedSpans (new[] { desiredCommentSpan.ToSpan () });
 					foreach (var commentedSpan2 in commentedSpans2) {
 						var snapshotSpan = new SnapshotSpan (snapshot, commentedSpan2.Start, commentedSpan2.Length);
 						commentedSpans.Add (snapshotSpan);
@@ -361,6 +361,7 @@ namespace MonoDevelop.Xml.Editor.Commands
 
 			foreach (var selectedSpan in selectedSpans) {
 				var region = node.GetValidCommentRegion (selectedSpan.ToTextSpan ());
+				regions.Add (region.ToSpan ());
 			}
 
 			var allRegions = new NormalizedSpanCollection (regions);
@@ -415,7 +416,7 @@ namespace MonoDevelop.Xml.Editor.Commands
 			return new Span (textSpan.Start, textSpan.Length);
 		}
 
-		public static TextSpan Envelope(this NormalizedSpanCollection spans)
+		public static TextSpan Envelope (this NormalizedSpanCollection spans)
 		{
 			if (spans == null || spans.Count == 0) {
 				return default;
