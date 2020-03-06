@@ -111,7 +111,12 @@ namespace MonoDevelop.Xml.Editor.Commands
 			return true;
 		}
 
-		public static void CommentSelection (ITextBuffer textBuffer, IEnumerable<VirtualSnapshotSpan> selectedSpans, XDocument xmlDocumentSyntax, IEditorOperations editorOperations, IMultiSelectionBroker multiSelectionBroker)
+		public static void CommentSelection (
+			ITextBuffer textBuffer,
+			IEnumerable<VirtualSnapshotSpan> selectedSpans,
+			XDocument xmlDocumentSyntax,
+			IEditorOperations editorOperations = null,
+			IMultiSelectionBroker multiSelectionBroker = null)
 		{
 			var snapshot = textBuffer.CurrentSnapshot;
 
@@ -146,21 +151,29 @@ namespace MonoDevelop.Xml.Editor.Commands
 
 			var translatedInsertionPoints = newCommentInsertionPoints.Select (p => p.TranslateTo (newSnapshot)).ToHashSet ();
 
-			multiSelectionBroker.PerformActionOnAllSelections (transformer => {
-				if (translatedInsertionPoints.Contains(transformer.Selection.ActivePoint)) {
-					transformer.MoveTo (
-						new VirtualSnapshotPoint (transformer.Selection.End.Position - CloseComment.Length - 1),
-						select: false,
-						insertionPointAffinity: PositionAffinity.Successor);
-				}
-			});
+			if (multiSelectionBroker != null) {
+				multiSelectionBroker.PerformActionOnAllSelections (transformer => {
+					if (translatedInsertionPoints.Contains (transformer.Selection.ActivePoint)) {
+						transformer.MoveTo (
+							new VirtualSnapshotPoint (transformer.Selection.End.Position - CloseComment.Length - 1),
+							select: false,
+							insertionPointAffinity: PositionAffinity.Successor);
+					}
+				});
+			}
 		}
 
 		private static void CommentEmptySpans (ITextEdit edit, IEnumerable<VirtualSnapshotPoint> virtualPoints, IEditorOperations editorOperations)
 		{
 			foreach (var virtualPoint in virtualPoints) {
 				if (virtualPoint.IsInVirtualSpace) {
-					var leadingWhitespace = editorOperations.GetWhitespaceForVirtualSpace (virtualPoint);
+					string leadingWhitespace;
+					if (editorOperations != null) {
+						leadingWhitespace = editorOperations.GetWhitespaceForVirtualSpace (virtualPoint);
+					} else {
+						leadingWhitespace = new string (' ', virtualPoint.VirtualSpaces);
+					}
+
 					edit.Insert (virtualPoint.Position, leadingWhitespace);
 					edit.Insert (virtualPoint.Position, OpenComment);
 					edit.Insert (virtualPoint.Position, "  ");
