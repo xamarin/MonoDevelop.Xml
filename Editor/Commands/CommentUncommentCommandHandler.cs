@@ -130,17 +130,17 @@ namespace MonoDevelop.Xml.Editor.Commands
 				}
 			}
 
-			NormalizedSnapshotSpanCollection commentSpans = null;
+			NormalizedSnapshotSpanCollection commentSpans = NormalizedSnapshotSpanCollection.Empty;
 			if (spansToExpandIntoComments.Any ()) {
 				commentSpans = GetCommentableSpansInSelection (xmlDocumentSyntax, spansToExpandIntoComments);
 			}
 
 			using (var edit = textBuffer.CreateEdit ()) {
-				if (commentSpans?.Any () == true) {
+				if (commentSpans.Any ()) {
 					CommentSpans (edit, commentSpans);
 				}
 
-				if (newCommentInsertionPoints?.Any () == true) {
+				if (newCommentInsertionPoints.Any ()) {
 					CommentEmptySpans (edit, newCommentInsertionPoints, editorOperations);
 				}
 
@@ -150,14 +150,21 @@ namespace MonoDevelop.Xml.Editor.Commands
 			var newSnapshot = textBuffer.CurrentSnapshot;
 
 			var translatedInsertionPoints = newCommentInsertionPoints.Select (p => p.TranslateTo (newSnapshot)).ToHashSet ();
+			var fixupSelectionStarts = selectedSpans.Where(s => !s.IsEmpty).ToDictionary (
+				c => c.Start.TranslateTo (newSnapshot, PointTrackingMode.Positive),
+				c => c.Start.TranslateTo (newSnapshot, PointTrackingMode.Negative));
 
 			if (multiSelectionBroker != null) {
 				multiSelectionBroker.PerformActionOnAllSelections (transformer => {
 					if (translatedInsertionPoints.Contains (transformer.Selection.ActivePoint)) {
 						transformer.MoveTo (
-							new VirtualSnapshotPoint (transformer.Selection.End.Position - CloseComment.Length - 1),
+							new VirtualSnapshotPoint (transformer.Selection.End.Position - CloseComment.Length),
 							select: false,
 							insertionPointAffinity: PositionAffinity.Successor);
+					} else if (fixupSelectionStarts.TryGetValue(transformer.Selection.Start, out var newStart)) {
+						var end = transformer.Selection.End;
+						transformer.MoveTo (newStart, select: false, PositionAffinity.Successor);
+						transformer.MoveTo (end, select: true, PositionAffinity.Successor);
 					}
 				});
 			}
@@ -180,7 +187,6 @@ namespace MonoDevelop.Xml.Editor.Commands
 				}
 
 				edit.Insert (virtualPoint.Position, OpenComment);
-				edit.Insert (virtualPoint.Position, "  ");
 				edit.Insert (virtualPoint.Position, CloseComment);
 			}
 		}
@@ -217,11 +223,21 @@ namespace MonoDevelop.Xml.Editor.Commands
 			}
 		}
 
-		public static void ToggleCommentSelection (ITextBuffer textBuffer, IEnumerable<VirtualSnapshotSpan> selectedSpans, XDocument xmlDocumentSyntax)
+		public static void ToggleCommentSelection (
+			ITextBuffer textBuffer,
+			IEnumerable<VirtualSnapshotSpan> selectedSpans,
+			XDocument xmlDocumentSyntax,
+			IEditorOperations editorOperations = null,
+			IMultiSelectionBroker multiSelectionBroker = null)
 		{
 			var commentedSpans = GetCommentedSpansInSelection (xmlDocumentSyntax, selectedSpans);
-			if (!commentedSpans.Any()) {
-				CommentSelection (textBuffer, selectedSpans, xmlDocumentSyntax);
+			if (!commentedSpans.Any ()) {
+				CommentSelection (
+					textBuffer,
+					selectedSpans,
+					xmlDocumentSyntax,
+					editorOperations,
+					multiSelectionBroker);
 				return;
 			}
 
@@ -358,45 +374,46 @@ namespace MonoDevelop.Xml.Editor.Commands
 			}
 
 			var allRegions = new NormalizedSpanCollection (regions);
-			var allRegionsSpan = allRegions.Envelope ();
 
-			int currentStart = allRegionsSpan.Start;
+			foreach (var currentRegion in allRegions) {
+				int currentStart = currentRegion.Start;
 
-			// Creates comments such that current comments are excluded
-			var parentNode = node.GetNodeContainingRange (allRegionsSpan);
+				// Creates comments such that current comments are excluded
+				var parentNode = node.GetNodeContainingRange (currentRegion.ToTextSpan ());
 
-			parentNode.VisitSelfAndChildren (child => {
-				if (child is XComment comment) {
-					// ignore comments outside our range
-					if (!comment.Span.Intersects (allRegionsSpan)) {
-						return;
-					}
-
-					var commentNodeSpan = comment.Span;
-					if (returnComments)
-						commentSpans.Add (commentNodeSpan);
-					else {
-						var validCommentSpan = TextSpan.FromBounds (currentStart, commentNodeSpan.Start);
-						if (validCommentSpan.Length != 0) {
-							commentSpans.Add (validCommentSpan);
+				parentNode.VisitSelfAndChildren (child => {
+					if (child is XComment comment) {
+						// ignore comments outside our range
+						if (!currentRegion.IntersectsWith (comment.Span.ToSpan ())) {
+							return;
 						}
 
-						currentStart = commentNodeSpan.End;
-					}
-				}
-			});
+						var commentNodeSpan = comment.Span;
+						if (returnComments)
+							commentSpans.Add (commentNodeSpan);
+						else {
+							var validCommentSpan = TextSpan.FromBounds (currentStart, commentNodeSpan.Start);
+							if (validCommentSpan.Length != 0) {
+								commentSpans.Add (validCommentSpan);
+							}
 
-			if (!returnComments) {
-				if (currentStart <= allRegionsSpan.End) {
-					var remainingCommentSpan = TextSpan.FromBounds (currentStart, allRegionsSpan.End);
-					if (remainingCommentSpan.Equals (allRegionsSpan) || remainingCommentSpan.Length != 0) {
-						// Comment any remaining uncommented area
-						commentSpans.Add (remainingCommentSpan);
+							currentStart = commentNodeSpan.End;
+						}
+					}
+				});
+
+				if (!returnComments) {
+					if (currentStart <= currentRegion.End) {
+						var remainingCommentSpan = TextSpan.FromBounds (currentStart, currentRegion.End);
+						if (remainingCommentSpan.Equals (currentRegion) || remainingCommentSpan.Length != 0) {
+							// Comment any remaining uncommented area
+							commentSpans.Add (remainingCommentSpan);
+						}
 					}
 				}
 			}
 
-			return commentSpans;
+			return commentSpans.Distinct();
 		}
 
 		public static TextSpan ToTextSpan (this Span span)
@@ -407,17 +424,6 @@ namespace MonoDevelop.Xml.Editor.Commands
 		public static Span ToSpan (this TextSpan textSpan)
 		{
 			return new Span (textSpan.Start, textSpan.Length);
-		}
-
-		public static TextSpan Envelope (this NormalizedSpanCollection spans)
-		{
-			if (spans == null || spans.Count == 0) {
-				return default;
-			}
-
-			var first = spans[0];
-			var last = spans[spans.Count - 1];
-			return new TextSpan (first.Start, last.End - first.Start);
 		}
 
 		public static TextSpan GetValidCommentRegion (this XContainer node, TextSpan commentSpan)
@@ -445,7 +451,8 @@ namespace MonoDevelop.Xml.Editor.Commands
 			}
 
 			if (nodeAtPosition is XComment ||
-				nodeAtPosition is XProcessingInstruction) {
+				nodeAtPosition is XProcessingInstruction ||
+				nodeAtPosition is XCData) {
 				return nodeAtPosition.Span;
 			}
 

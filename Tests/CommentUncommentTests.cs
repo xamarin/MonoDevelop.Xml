@@ -20,6 +20,8 @@ namespace MonoDevelop.Xml.Tests
 	public class CommentUncommentTests : EditorTestBase
 	{
 		public const char VirtualSpaceMarker = '→';
+		public const char SelectionStartMarker = '{';
+		public const char SelectionEndMarker = '}';
 
 		protected override string ContentTypeName => XmlContentTypeNames.XmlCore;
 
@@ -27,47 +29,47 @@ namespace MonoDevelop.Xml.Tests
 
 		[Test]
 
-		[TestCase (@"[]<x>
+		[TestCase (@"{}<x>
 </x>", @"<!--<x>
 </x>-->")]
 
-		[TestCase (@"<x>[]
+		[TestCase (@"<x>{}
 </x>", @"<!--<x>
 </x>-->")]
 
-		[TestCase (@"[<x>]
+		[TestCase (@"{<x>}
 </x>", @"<!--<x>
 </x>-->")]
 
-		[TestCase (@"[<x>
-</x>]", @"<!--<x>
+		[TestCase (@"{<x>
+</x>}", @"<!--<x>
 </x>-->")]
 
 		[TestCase (@"<x>
-[]</x>", @"<!--<x>
+{}</x>", @"<!--<x>
 </x>-->")]
 
 		[TestCase (@"<x>
-  [<a></a>]
+  {<a></a>}
 </x>", @"<x>
   <!--<a></a>-->
 </x>")]
 
 		[TestCase (@"<x>
-  <a></a>[]
+  <a></a>{}
 </x>", @"<x>
   <!--<a></a>-->
 </x>")]
 
 		[TestCase (@"<x>
-  <a></a>[]
+  <a></a>{}
   <!--c-->
 </x>", @"<x>
   <!--<a></a>-->
   <!--c-->
 </x>")]
 
-		[TestCase (@"[]<x>
+		[TestCase (@"{}<x>
   <a></a>
   <!--c-->
 </x>", @"<!--<x>
@@ -75,34 +77,34 @@ namespace MonoDevelop.Xml.Tests
   --><!--c--><!--
 </x>-->", false)]
 
-		[TestCase (@"[]<x />", @"<!--<x />-->")]
+		[TestCase (@"{}<x />", @"<!--<x />-->")]
 
-		[TestCase (@"<x />[]", @"<!--<x />-->")]
+		[TestCase (@"<x />{}", @"<!--<x />-->")]
 
 		[TestCase (@"<x
-[a]=""a""/>", @"<!--<x
+{a}=""a""/>", @"<!--<x
 a=""a""/>-->")]
 
-		[TestCase (@"[]<?xml ?>", @"<!--<?xml ?>-->")]
+		[TestCase (@"{}<?xml ?>", @"<!--<?xml ?>-->")]
 
-		[TestCase (@"[]<!--x-->", @"<!--x-->", false)]
+		[TestCase (@"{}<!--x-->", @"<!--x-->", false)]
 
-		[TestCase (@"[<x/>
-<x/>]", @"<!--<x/>
+		[TestCase (@"{<x/>
+<x/>}", @"<!--<x/>
 <x/>-->")]
 
-		[TestCase (@"<[x/>
-<]x/>", @"<!--<x/>
+		[TestCase (@"<{x/>
+<}x/>", @"<!--<x/>
 <x/>-->")]
 
 		[TestCase (@"<x>
-  [text]
+  {text}
 <x/>", @"<x>
   <!--text-->
 <x/>")]
 
 		[TestCase (@"<x>
-  [text]
+  {text}
   more text
 <x/>", @"<x>
   <!--text-->
@@ -111,7 +113,7 @@ a=""a""/>-->")]
 
 		[TestCase (@"<x>
   text
-  [<a/>]
+  {<a/>}
   more text
 <x/>", @"<x>
   text
@@ -120,8 +122,8 @@ a=""a""/>-->")]
 <x/>")]
 
 		[TestCase (@"<x>
-  [text
-  <a/>]
+  {text
+  <a/>}
   more text
 <x/>", @"<x>
   <!--text
@@ -130,24 +132,46 @@ a=""a""/>-->")]
 <x/>")]
 
 		[TestCase (@"<x>
-[  <a/>
+{  <a/>
   <a/>
-]<x/>", @"<x>
+}<x/>", @"<x>
 <!--  <a/>
   <a/>-->
 <x/>")]
 
 		[TestCase (@"<x>
-  []
+  {}
 <x/>", @"<x>
-  <!--  -->
+  <!---->
 <x/>")]
 
 		[TestCase (@"<x>
-→→[]
+→→{}
 <x/>", @"<x>
-  <!--  -->
+  <!---->
 <x/>")]
+
+		[TestCase (@"<x>
+  {<a/>}
+  {<a/>}
+<x/>", @"<x>
+  <!--<a/>-->
+  <!--<a/>-->
+<x/>")]
+
+		[TestCase (@"<x>
+  {<a><!-- comment --></a>}
+  {<a></a>}
+<x/>", @"<x>
+  <!--<a>--><!-- comment --><!--</a>-->
+  <!--<a></a>-->
+<x/>", false)]
+
+		[TestCase (@"<x>
+  {<![CDATA[bar]]>}
+<x/>", @"<x>
+  <!--<![CDATA[bar]]>-->
+<x/>", false)]
 
 		public void TestComment (string sourceText, string expectedText, bool toggle = true)
 		{
@@ -159,7 +183,7 @@ a=""a""/>-->")]
 
 			Assert.AreEqual (expectedText, actualText);
 
-			// toggle should also work in all scenarios for comment
+			// toggle should also work in most scenarios for comment
 			if (toggle) {
 				TestToggle (sourceText, expectedText);
 			}
@@ -167,25 +191,25 @@ a=""a""/>-->")]
 
 		[Test]
 
-		[TestCase (@"[]<!--<x>
+		[TestCase (@"{}<!--<x>
 </x>-->", @"<x>
 </x>")]
 
-		[TestCase (@"[<!--<x>
-</x>-->]", @"<x>
+		[TestCase (@"{<!--<x>
+</x>-->}", @"<x>
 </x>")]
 
-		[TestCase (@"[<x>
-</x>]", @"<x>
+		[TestCase (@"{<x>
+</x>}", @"<x>
 </x>", false)]
 
 		[TestCase (@"<x>
-  [<!-- text -->]
+  {<!-- text -->}
 </x>", @"<x>
    text 
 </x>")]
 
-		[TestCase (@"[]<!--<x>
+		[TestCase (@"{}<!--<x>
   --><!-- text --><!--
 </x>-->", @"<x>
   <!-- text --><!--
@@ -201,7 +225,7 @@ a=""a""/>-->")]
 
 			Assert.AreEqual (expectedText, actualText);
 
-			// toggle should also work in all scenarios for uncomment
+			// toggle should also work in most scenarios for uncomment
 			if (toggle) {
 				TestToggle (sourceText, expectedText);
 			}
@@ -257,10 +281,10 @@ a=""a""/>-->")]
 					continue;
 				}
 
-				if (ch == '[') {
+				if (ch == SelectionStartMarker) {
 					start = index;
 					virtualSpacesAtStart = virtualSpace;
-				} else if (ch == ']') {
+				} else if (ch == SelectionEndMarker) {
 					var span = new VirtualSpan {
 						Span = new Span(start, index - start),
 						VirtualSpacesAtStart = virtualSpacesAtStart,
