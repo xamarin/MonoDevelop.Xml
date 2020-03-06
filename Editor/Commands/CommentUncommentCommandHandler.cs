@@ -32,10 +32,10 @@ namespace MonoDevelop.Xml.Editor.Commands
 		const string CloseComment = "-->";
 
 		[Import]
-		internal ITextUndoHistoryRegistry undoHistoryRegistry { get; set; }
+		ITextUndoHistoryRegistry undoHistoryRegistry { get; set; }
 
 		[Import]
-		internal IEditorOperationsFactoryService editorOperationsFactoryService { get; set; }
+		IEditorOperationsFactoryService editorOperationsFactoryService { get; set; }
 
 		public string DisplayName => Name;
 
@@ -84,7 +84,6 @@ namespace MonoDevelop.Xml.Editor.Commands
 			string description = operation.ToString ();
 
 			var editorOperations = editorOperationsFactoryService.GetEditorOperations (textView);
-
 			var multiSelectionBroker = textView.GetMultiSelectionBroker ();
 			var selectedSpans = multiSelectionBroker.AllSelections.Select (selection => selection.Extent);
 
@@ -100,7 +99,7 @@ namespace MonoDevelop.Xml.Editor.Commands
 						UncommentSelection (textBuffer, selectedSpans, xmlDocumentSyntax);
 						break;
 					case Operation.Toggle:
-						ToggleCommentSelection (textBuffer, selectedSpans, xmlDocumentSyntax);
+						ToggleCommentSelection (textBuffer, selectedSpans, xmlDocumentSyntax, editorOperations, multiSelectionBroker);
 						break;
 					}
 
@@ -122,7 +121,9 @@ namespace MonoDevelop.Xml.Editor.Commands
 
 			var spansToExpandIntoComments = new List<SnapshotSpan> ();
 			var newCommentInsertionPoints = new List<VirtualSnapshotPoint> ();
+
 			foreach (var selectedSpan in selectedSpans) {
+				// empty selection on an empty line results in inserting a new comment
 				if (selectedSpan.IsEmpty && string.IsNullOrWhiteSpace (snapshot.GetLineFromPosition (selectedSpan.Start.Position).GetText ())) {
 					newCommentInsertionPoints.Add (selectedSpan.Start);
 				} else {
@@ -149,19 +150,22 @@ namespace MonoDevelop.Xml.Editor.Commands
 
 			var newSnapshot = textBuffer.CurrentSnapshot;
 
+			// Now fix up the selections after the edit.
 			var translatedInsertionPoints = newCommentInsertionPoints.Select (p => p.TranslateTo (newSnapshot)).ToHashSet ();
-			var fixupSelectionStarts = selectedSpans.Where(s => !s.IsEmpty).ToDictionary (
+			var fixupSelectionStarts = selectedSpans.Where (s => !s.IsEmpty).ToDictionary (
 				c => c.Start.TranslateTo (newSnapshot, PointTrackingMode.Positive),
 				c => c.Start.TranslateTo (newSnapshot, PointTrackingMode.Negative));
 
 			if (multiSelectionBroker != null) {
 				multiSelectionBroker.PerformActionOnAllSelections (transformer => {
+					// for newly inserted comments position the caret inside the comment
 					if (translatedInsertionPoints.Contains (transformer.Selection.ActivePoint)) {
 						transformer.MoveTo (
 							new VirtualSnapshotPoint (transformer.Selection.End.Position - CloseComment.Length),
 							select: false,
 							insertionPointAffinity: PositionAffinity.Successor);
-					} else if (fixupSelectionStarts.TryGetValue(transformer.Selection.Start, out var newStart)) {
+						// for commented code make sure the new selection includes the opening <!--
+					} else if (fixupSelectionStarts.TryGetValue (transformer.Selection.Start, out var newStart)) {
 						var end = transformer.Selection.End;
 						transformer.MoveTo (newStart, select: false, PositionAffinity.Successor);
 						transformer.MoveTo (end, select: true, PositionAffinity.Successor);
@@ -170,36 +174,10 @@ namespace MonoDevelop.Xml.Editor.Commands
 			}
 		}
 
-		private static void CommentEmptySpans (ITextEdit edit, IEnumerable<VirtualSnapshotPoint> virtualPoints, IEditorOperations editorOperations)
-		{
-			foreach (var virtualPoint in virtualPoints) {
-				if (virtualPoint.IsInVirtualSpace) {
-					string leadingWhitespace;
-					if (editorOperations != null) {
-						leadingWhitespace = editorOperations.GetWhitespaceForVirtualSpace (virtualPoint);
-					} else {
-						leadingWhitespace = new string (' ', virtualPoint.VirtualSpaces);
-					}
-
-					if (leadingWhitespace.Length > 0) {
-						edit.Insert (virtualPoint.Position, leadingWhitespace);
-					}
-				}
-
-				edit.Insert (virtualPoint.Position, OpenComment);
-				edit.Insert (virtualPoint.Position, CloseComment);
-			}
-		}
-
-		public static void CommentSpans (ITextEdit edit, NormalizedSnapshotSpanCollection commentSpans)
-		{
-			foreach (var commentSpan in commentSpans) {
-				edit.Insert (commentSpan.Start, OpenComment);
-				edit.Insert (commentSpan.End, CloseComment);
-			}
-		}
-
-		public static void UncommentSelection (ITextBuffer textBuffer, IEnumerable<VirtualSnapshotSpan> selectedSpans, XDocument xmlDocumentSyntax)
+		public static void UncommentSelection (
+			ITextBuffer textBuffer,
+			IEnumerable<VirtualSnapshotSpan> selectedSpans,
+			XDocument xmlDocumentSyntax)
 		{
 			var commentedSpans = GetCommentedSpansInSelection (xmlDocumentSyntax, selectedSpans);
 			if (commentedSpans == null || !commentedSpans.Any ()) {
@@ -209,17 +187,6 @@ namespace MonoDevelop.Xml.Editor.Commands
 			using (var edit = textBuffer.CreateEdit ()) {
 				UncommentSpans (edit, commentedSpans);
 				edit.Apply ();
-			}
-		}
-
-		public static void UncommentSpans (ITextEdit edit, IEnumerable<SnapshotSpan> commentedSpans)
-		{
-			int beginCommentLength = OpenComment.Length;
-			int endCommentLength = CloseComment.Length;
-
-			foreach (var commentSpan in commentedSpans) {
-				edit.Delete (commentSpan.Start, beginCommentLength);
-				edit.Delete (commentSpan.End - endCommentLength, endCommentLength);
 			}
 		}
 
@@ -244,12 +211,65 @@ namespace MonoDevelop.Xml.Editor.Commands
 			UncommentSelection (textBuffer, selectedSpans, xmlDocumentSyntax);
 		}
 
+		/// <summary>
+		/// Performs the actual insertions of comment markers around the <see cref="commentSpans"/>
+		/// </summary>
+		static void CommentSpans (ITextEdit edit, NormalizedSnapshotSpanCollection commentSpans)
+		{
+			foreach (var commentSpan in commentSpans) {
+				edit.Insert (commentSpan.Start, OpenComment);
+				edit.Insert (commentSpan.End, CloseComment);
+			}
+		}
+
+		/// <summary>
+		/// Inserts a new comment at each virtual point, materializing the virtual space if necessary
+		/// </summary>
+		static void CommentEmptySpans (ITextEdit edit, IEnumerable<VirtualSnapshotPoint> virtualPoints, IEditorOperations editorOperations)
+		{
+			foreach (var virtualPoint in virtualPoints) {
+				if (virtualPoint.IsInVirtualSpace) {
+					string leadingWhitespace;
+					if (editorOperations != null) {
+						leadingWhitespace = editorOperations.GetWhitespaceForVirtualSpace (virtualPoint);
+					} else {
+						leadingWhitespace = new string (' ', virtualPoint.VirtualSpaces);
+					}
+
+					if (leadingWhitespace.Length > 0) {
+						edit.Insert (virtualPoint.Position, leadingWhitespace);
+					}
+				}
+
+				edit.Insert (virtualPoint.Position, OpenComment);
+				edit.Insert (virtualPoint.Position, CloseComment);
+			}
+		}
+
+		/// <summary>
+		/// Removes the comment markers from a set of spans
+		/// </summary>
+		static void UncommentSpans (ITextEdit edit, IEnumerable<SnapshotSpan> commentedSpans)
+		{
+			int beginCommentLength = OpenComment.Length;
+			int endCommentLength = CloseComment.Length;
+
+			foreach (var commentSpan in commentedSpans) {
+				edit.Delete (commentSpan.Start, beginCommentLength);
+				edit.Delete (commentSpan.End - endCommentLength, endCommentLength);
+			}
+		}
+
+		/// <summary>
+		/// Calculates the syntactically valid non-commented portions of a set of spans
+		/// excluding the already commented portions.
+		/// </summary>
 		static NormalizedSnapshotSpanCollection GetCommentableSpansInSelection (XDocument xmlDocumentSyntax, IEnumerable<SnapshotSpan> selectedSpans)
 		{
 			var commentSpans = new List<SnapshotSpan> ();
 			var snapshot = selectedSpans.First ().Snapshot;
 
-			var validSpans = xmlDocumentSyntax.GetValidCommentSpans (selectedSpans.Select (s => GetDesiredCommentSpan (s).ToSpan ()));
+			var validSpans = xmlDocumentSyntax.GetValidCommentSpans (selectedSpans.Select (s => GetDesiredCommentSpan (s)));
 
 			foreach (var singleValidSpan in validSpans) {
 				var snapshotSpan = new SnapshotSpan (snapshot, new Span (singleValidSpan.Start, singleValidSpan.Length));
@@ -259,6 +279,9 @@ namespace MonoDevelop.Xml.Editor.Commands
 			return new NormalizedSnapshotSpanCollection (commentSpans);
 		}
 
+		/// <summary>
+		/// Returns the already commented portions intersecting a set of spans.
+		/// </summary>
 		static IEnumerable<SnapshotSpan> GetCommentedSpansInSelection (XDocument xmlDocumentSyntax, IEnumerable<VirtualSnapshotSpan> selectedSpans)
 		{
 			var commentedSpans = new List<SnapshotSpan> ();
@@ -266,13 +289,14 @@ namespace MonoDevelop.Xml.Editor.Commands
 
 			foreach (var selectedSpan in selectedSpans) {
 				bool allowLineUncomment = true;
+
 				if (selectedSpan.IsEmpty) {
 					// For point selection, first see which comments are returned for the point span
 					// If the strictly inside a commented node, just uncommented that node
 					// otherwise, allow line uncomment
 					var start = selectedSpan.Start.Position.Position;
 					var selectionCommentedSpans =
-						xmlDocumentSyntax.GetCommentedSpans (new[] { new Span (start, 0) }).ToList ();
+						xmlDocumentSyntax.GetCommentedSpans (new[] { new TextSpan (start, 0) }).ToList ();
 					foreach (var selectionCommentedSpan in selectionCommentedSpans) {
 						if (selectionCommentedSpan.Contains (start) &&
 							selectionCommentedSpan.Start != start &&
@@ -287,7 +311,7 @@ namespace MonoDevelop.Xml.Editor.Commands
 
 				if (allowLineUncomment) {
 					var desiredCommentSpan = GetDesiredCommentSpan (selectedSpan.SnapshotSpan);
-					var commentedSpans2 = xmlDocumentSyntax.GetCommentedSpans (new[] { desiredCommentSpan.ToSpan () });
+					var commentedSpans2 = xmlDocumentSyntax.GetCommentedSpans (new[] { desiredCommentSpan });
 					foreach (var commentedSpan2 in commentedSpans2) {
 						var snapshotSpan = new SnapshotSpan (snapshot, commentedSpan2.Start, commentedSpan2.Length);
 						commentedSpans.Add (snapshotSpan);
@@ -298,6 +322,10 @@ namespace MonoDevelop.Xml.Editor.Commands
 			return commentedSpans;
 		}
 
+		/// <summary>
+		/// Expands the selection to the non-whitespace portion of the current line
+		/// in case the caret is in whitespace to the left from the XML to comment/uncomment
+		/// </summary>
 		static TextSpan GetDesiredCommentSpan (SnapshotSpan selectedSpan)
 		{
 			ITextSnapshot snapshot = selectedSpan.Snapshot;
@@ -337,45 +365,43 @@ namespace MonoDevelop.Xml.Editor.Commands
 			}
 
 			return TextSpan.FromBounds (start.Value, end);
-		}
 
-		static bool IsWhiteSpace (char c)
-		{
-			return c == ' ' || c == '\t' || (c > (char)128 && char.IsWhiteSpace (c));
-		}
+			bool IsWhiteSpace (char c)
+			{
+				return c == ' ' || c == '\t' || (c > (char)128 && char.IsWhiteSpace (c));
+			}
 
-		static bool IsLineBreak (char c)
-		{
-			return c == '\n' || c == '\r';
+			bool IsLineBreak (char c)
+			{
+				return c == '\n' || c == '\r';
+			}
 		}
 	}
 
-	public static class CommentUtilities
+	static class CommentUtilities
 	{
-		public static IEnumerable<TextSpan> GetValidCommentSpans (this XContainer node, IEnumerable<Span> commentSpans)
-		{
-			return GetCommentSpans (node, commentSpans, returnComments: false);
-		}
+		public static IEnumerable<TextSpan> GetValidCommentSpans (this XContainer node, IEnumerable<TextSpan> selectedSpans)
+			=> GetCommentSpans (node, selectedSpans, returnComments: false);
 
-		public static IEnumerable<TextSpan> GetCommentedSpans (this XContainer node, IEnumerable<Span> commentSpans)
-		{
-			return GetCommentSpans (node, commentSpans, returnComments: true);
-		}
+		public static IEnumerable<TextSpan> GetCommentedSpans (this XContainer node, IEnumerable<TextSpan> selectedSpans)
+			=> GetCommentSpans (node, selectedSpans, returnComments: true);
 
-		static IEnumerable<TextSpan> GetCommentSpans (this XContainer node, IEnumerable<Span> selectedSpans, bool returnComments)
+		static IEnumerable<TextSpan> GetCommentSpans (this XContainer node, IEnumerable<TextSpan> selectedSpans, bool returnComments)
 		{
 			var commentSpans = new List<TextSpan> ();
 
+			// First unify, normalize and deduplicate syntactic spans since multiple selections can result
+			// in a single syntactic span to be commented
 			var regions = new List<Span> ();
-
 			foreach (var selectedSpan in selectedSpans) {
-				var region = node.GetValidCommentRegion (selectedSpan.ToTextSpan ());
+				var region = node.GetValidCommentRegion (selectedSpan);
 				regions.Add (region.ToSpan ());
 			}
 
-			var allRegions = new NormalizedSpanCollection (regions);
+			var normalizedRegions = new NormalizedSpanCollection (regions);
 
-			foreach (var currentRegion in allRegions) {
+			// Then for each region cut out the existing comments that may be inside
+			foreach (var currentRegion in normalizedRegions) {
 				int currentStart = currentRegion.Start;
 
 				// Creates comments such that current comments are excluded
@@ -413,25 +439,26 @@ namespace MonoDevelop.Xml.Editor.Commands
 				}
 			}
 
-			return commentSpans.Distinct();
+			return commentSpans.Distinct ();
 		}
 
-		public static TextSpan ToTextSpan (this Span span)
+		static TextSpan ToTextSpan (this Span span)
 		{
 			return new TextSpan (span.Start, span.Length);
 		}
 
-		public static Span ToSpan (this TextSpan textSpan)
+		static Span ToSpan (this TextSpan textSpan)
 		{
 			return new Span (textSpan.Start, textSpan.Length);
 		}
 
-		public static TextSpan GetValidCommentRegion (this XContainer node, TextSpan commentSpan)
+		static TextSpan GetValidCommentRegion (this XContainer node, TextSpan commentSpan)
 		{
 			var commentSpanStart = GetCommentRegion (node, commentSpan.Start, commentSpan);
 
-			if (commentSpan.Length == 0)
+			if (commentSpan.Length == 0) {
 				return commentSpanStart;
+			}
 
 			var commentSpanEnd = GetCommentRegion (node, commentSpan.End - 1, commentSpan);
 

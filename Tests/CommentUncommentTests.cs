@@ -215,6 +215,18 @@ a=""a""/>-->")]
   <!-- text --><!--
 </x>-->", false)]
 
+		[TestCase (@"<x>
+  {<}!--<a/>-->
+  <b/>
+  <!--<a/>-->{}
+  {<!--<a/>-->}
+</x>", @"<x>
+  <a/>
+  <b/>
+  <a/>
+  <a/>
+</x>", false)]
+
 		public void TestUncomment (string sourceText, string expectedText, bool toggle = true)
 		{
 			var (buffer, snapshotSpans, document) = GetBufferSpansAndDocument (sourceText);
