@@ -70,6 +70,11 @@ namespace MonoDevelop.Xml.Editor.Tagging
 				var nodes = GetNodesIntersectingRange(root, new TextSpan(snapshotSpan.Span.Start, snapshotSpan.Span.Length));
 				foreach (var node in nodes)
 				{
+					// exclude the document itself since the root element will take care of it
+					if (node is XDocument) {
+						continue;
+					}
+
 					var nodeSpan = node.OuterSpan;
 					if (nodeSpan.Start < 0 || nodeSpan.End > snapshot.Length)
 					{
