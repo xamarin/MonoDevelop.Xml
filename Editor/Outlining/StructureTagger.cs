@@ -65,6 +65,9 @@ namespace MonoDevelop.Xml.Editor.Tagging
 
 			List<ITagSpan<IStructureTag>> resultList = new List<ITagSpan<IStructureTag>>();
 
+			int previousLineStart = -1;
+			int previousLineEnd = -1;
+
 			foreach (var snapshotSpan in spans)
 			{
 				var nodes = GetNodesIntersectingRange(root, new TextSpan(snapshotSpan.Span.Start, snapshotSpan.Span.Length));
@@ -89,6 +92,14 @@ namespace MonoDevelop.Xml.Editor.Tagging
 						// ignore single-line nodes 
 						continue;
 					}
+
+					if (startLine.LineNumber == previousLineStart || endLine.LineNumber == previousLineEnd) {
+						// ignore multiple nodes starting and ending on the same line
+						continue;
+					}
+
+					previousLineStart = startLine.LineNumber;
+					previousLineEnd = endLine.LineNumber;
 
 					var headerSpan = new Span(outliningSpan.Start, startLine.End.Position - outliningSpan.Start);
 					string firstLine = snapshot.GetText(headerSpan);
