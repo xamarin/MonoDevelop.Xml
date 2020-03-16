@@ -37,9 +37,6 @@ namespace MonoDevelop.Xml.Editor.Tagging
 
 			var parseTask = parser.GetOrProcessAsync (snapshot, default);
 
-			// for most files we get the results very quickly so try to do it inline
-			parseTask.Wait (TimeSpan.FromMilliseconds (50));
-
 			if (parseTask.IsCompleted) {
 				return GetTags(parseTask.Result, spans, snapshot);
 			} else {
@@ -78,6 +75,11 @@ namespace MonoDevelop.Xml.Editor.Tagging
 						continue;
 					}
 
+					// no need to collapse text as usually collapsing the parent is good enough
+					if (node is XText) {
+						continue;
+					}
+
 					var nodeSpan = node.OuterSpan;
 					if (nodeSpan.Start < 0 || nodeSpan.End > snapshot.Length)
 					{
@@ -101,7 +103,7 @@ namespace MonoDevelop.Xml.Editor.Tagging
 					previousLineStart = startLine.LineNumber;
 					previousLineEnd = endLine.LineNumber;
 
-					var headerSpan = new Span(outliningSpan.Start, startLine.End.Position - outliningSpan.Start);
+					var headerSpan = new Span(outliningSpan.Start, Math.Min(startLine.End.Position - outliningSpan.Start, 100));
 					string firstLine = snapshot.GetText(headerSpan);
 					string collapseForm = firstLine;
 
@@ -115,7 +117,7 @@ namespace MonoDevelop.Xml.Editor.Tagging
 						type: PredefinedStructureTagTypes.Structural,
 						isCollapsible: true,
 						collapsedForm: collapseForm,
-						collapsedHintForm: snapshot.GetText(outliningSpan));
+						collapsedHintForm: snapshot.GetText(headerSpan));
 					var tagSpan = new TagSpan<IStructureTag>(tagSnapshotSpan, structureTag);
 					resultList.Add(tagSpan);
 				}
