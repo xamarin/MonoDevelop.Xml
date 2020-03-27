@@ -3,8 +3,7 @@ using Mono.Addins.Description;
 
 [assembly: Addin (
 	"MonoDevelop.Xml",
-	Namespace = "MonoDevelop.Xml",
-	Version = "2.3.1"
+	Namespace = "MonoDevelop.Xml"
 )]
 
 [assembly: AddinName ("Xml Editor")]
