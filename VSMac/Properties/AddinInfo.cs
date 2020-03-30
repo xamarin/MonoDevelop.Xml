@@ -2,10 +2,10 @@
 using Mono.Addins.Description;
 
 [assembly: Addin (
-	"MonoDevelop.Xml",
-	Namespace = "MonoDevelop.Xml",
+	"Xml",
+	Namespace = "MonoDevelop",
 	Version = MonoDevelop.BuildInfo.Version,
-	Category = "IDE Extensions"
+	Category = "IDE extensions"
 )]
 
 [assembly: AddinName ("Xml Editor")]

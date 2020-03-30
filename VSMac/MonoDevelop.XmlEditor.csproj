@@ -2,12 +2,19 @@
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
   </PropertyGroup>
+  
+  <PropertyGroup>
+    <InMonoDevelopTree Condition="Exists('$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), MonoDevelop.props))')">true</InMonoDevelopTree>
+    <OutDir Condition="$(InMonoDevelopTree) == 'true'">..\..\..\build\AddIns\MonoDevelop.Xml</OutDir>
+  </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="MonoDevelop.Addins" Version="0.4.7" />
-    <PackageReference Include="Microsoft.VisualStudio.Language.Intellisense" Version="16.4.66" />
-    <PackageReference Include="Microsoft.VisualStudio.Language.StandardClassification" Version="16.4.66" />
     <AddinReference Include="MonoDevelop.TextEditor" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.ComponentModel.Composition" />
   </ItemGroup>
 
   <ItemGroup>
