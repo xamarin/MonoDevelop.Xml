@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <AddinFile Include="Templates\XmlFile.xml" />
+    <EmbeddedResource Include="Templates\XmlFile.xml" />
   </ItemGroup>
 
   <ItemGroup>
