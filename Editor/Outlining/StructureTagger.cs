@@ -38,38 +38,35 @@ namespace MonoDevelop.Xml.Editor.Tagging
 			var parseTask = parser.GetOrProcessAsync (snapshot, default);
 
 			if (parseTask.IsCompleted) {
-				return GetTags(parseTask.Result, spans, snapshot);
+				return GetTags (parseTask.Result, spans, snapshot);
 			} else {
-				parseTask.ContinueWith(t =>
-				{
-					RaiseTagsChanged();
+				parseTask.ContinueWith (t => {
+					RaiseTagsChanged ();
 				});
 			}
 
 			return emptyTagList;
 		}
 
-		private void RaiseTagsChanged()
+		private void RaiseTagsChanged ()
 		{
 			var snapshot = buffer.CurrentSnapshot;
-			var args = new SnapshotSpanEventArgs(new SnapshotSpan(snapshot, 0, snapshot.Length));
-			TagsChanged?.Invoke(this, args);
+			var args = new SnapshotSpanEventArgs (new SnapshotSpan (snapshot, 0, snapshot.Length));
+			TagsChanged?.Invoke (this, args);
 		}
 
-		private IEnumerable<ITagSpan<IStructureTag>> GetTags(XmlParseResult xmlParseResult, NormalizedSnapshotSpanCollection spans, ITextSnapshot snapshot)
+		private IEnumerable<ITagSpan<IStructureTag>> GetTags (XmlParseResult xmlParseResult, NormalizedSnapshotSpanCollection spans, ITextSnapshot snapshot)
 		{
 			var root = xmlParseResult.XDocument;
 
-			List<ITagSpan<IStructureTag>> resultList = new List<ITagSpan<IStructureTag>>();
+			var resultList = new List<ITagSpan<IStructureTag>> ();
 
 			int previousLineStart = -1;
 			int previousLineEnd = -1;
 
-			foreach (var snapshotSpan in spans)
-			{
-				var nodes = GetNodesIntersectingRange(root, new TextSpan(snapshotSpan.Span.Start, snapshotSpan.Span.Length));
-				foreach (var node in nodes)
-				{
+			foreach (var snapshotSpan in spans) {
+				var nodes = GetNodesIntersectingRange (root, new TextSpan (snapshotSpan.Span.Start, snapshotSpan.Span.Length));
+				foreach (var node in nodes) {
 					// exclude the document itself since the root element will take care of it
 					if (node is XDocument) {
 						continue;
@@ -81,16 +78,14 @@ namespace MonoDevelop.Xml.Editor.Tagging
 					}
 
 					var nodeSpan = node.OuterSpan;
-					if (nodeSpan.Start < 0 || nodeSpan.End > snapshot.Length)
-					{
+					if (nodeSpan.Start < 0 || nodeSpan.End > snapshot.Length) {
 						continue;
 					}
 
-					var outliningSpan = new Span(nodeSpan.Start, nodeSpan.Length);
-					var startLine = snapshot.GetLineFromPosition(outliningSpan.Start);
-					var endLine = snapshot.GetLineFromPosition(outliningSpan.End);
-					if (startLine.LineNumber == endLine.LineNumber)
-					{
+					var outliningSpan = new Span (nodeSpan.Start, nodeSpan.Length);
+					var startLine = snapshot.GetLineFromPosition (outliningSpan.Start);
+					var endLine = snapshot.GetLineFromPosition (outliningSpan.End);
+					if (startLine.LineNumber == endLine.LineNumber) {
 						// ignore single-line nodes 
 						continue;
 					}
@@ -103,12 +98,12 @@ namespace MonoDevelop.Xml.Editor.Tagging
 					previousLineStart = startLine.LineNumber;
 					previousLineEnd = endLine.LineNumber;
 
-					var headerSpan = new Span(outliningSpan.Start, Math.Min(startLine.End.Position - outliningSpan.Start, 100));
-					string firstLine = snapshot.GetText(headerSpan);
+					var headerSpan = new Span (outliningSpan.Start, Math.Min (startLine.End.Position - outliningSpan.Start, 100));
+					string firstLine = snapshot.GetText (headerSpan);
 					string collapseForm = firstLine;
 
-					var tagSnapshotSpan = new SnapshotSpan(snapshot, outliningSpan);
-					var structureTag = new StructureTag(
+					var tagSnapshotSpan = new SnapshotSpan (snapshot, outliningSpan);
+					var structureTag = new StructureTag (
 						snapshot,
 						outliningSpan: outliningSpan,
 						headerSpan: headerSpan,
@@ -117,43 +112,35 @@ namespace MonoDevelop.Xml.Editor.Tagging
 						type: PredefinedStructureTagTypes.Structural,
 						isCollapsible: true,
 						collapsedForm: collapseForm,
-						collapsedHintForm: snapshot.GetText(headerSpan));
-					var tagSpan = new TagSpan<IStructureTag>(tagSnapshotSpan, structureTag);
-					resultList.Add(tagSpan);
+						collapsedHintForm: snapshot.GetText (headerSpan));
+					var tagSpan = new TagSpan<IStructureTag> (tagSnapshotSpan, structureTag);
+					resultList.Add (tagSpan);
 				}
 			}
 
 			return resultList;
 		}
 
-		private static IEnumerable<XNode> GetNodesIntersectingRange(XContainer root, TextSpan span)
+		private static IEnumerable<XNode> GetNodesIntersectingRange (XContainer root, TextSpan span)
 		{
-			if (root.OuterSpan.Intersects(span))
-			{
+			if (root.OuterSpan.Intersects (span)) {
 				yield return root;
 			}
 
-			foreach (var child in root.Nodes)
-			{
-				if (child.OuterSpan.End < span.Start)
-				{
+			foreach (var child in root.Nodes) {
+				if (child.OuterSpan.End < span.Start) {
 					continue;
 				}
 
-				if (child.OuterSpan.Start >= span.End)
-				{
+				if (child.OuterSpan.Start >= span.End) {
 					break;
 				}
 
-				if (child is XContainer childContainer)
-				{
-					foreach (var grandchild in GetNodesIntersectingRange(childContainer, span))
-					{
+				if (child is XContainer childContainer) {
+					foreach (var grandchild in GetNodesIntersectingRange (childContainer, span)) {
 						yield return grandchild;
 					}
-				}
-				else
-				{
+				} else {
 					yield return child;
 				}
 			}
