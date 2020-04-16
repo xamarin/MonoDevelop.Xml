@@ -13,18 +13,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MonoDevelop.Addins" Version="0.4.7" />
+    <!-- <PackageReference Include="MonoDevelop.Addins" Version="0.4.7" /> -->
   </ItemGroup>
 
   <ItemGroup>
     <AddinReference Include="MonoDevelop.TextEditor" />
   </ItemGroup>
 
-  <!-- <ItemGroup>
+  <ItemGroup>
     <Reference Include="System.ComponentModel.Composition" />
-  </ItemGroup> -->
+  </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\mono-addins\Mono.Addins\Mono.Addins.csproj" />
+    <ProjectReference Include="..\..\..\src\core\MonoDevelop.Core\MonoDevelop.Core.csproj" />
     <ProjectReference Include="..\Core\MonoDevelop.Xml.Core.csproj" />
     <ProjectReference Include="..\Editor\MonoDevelop.Xml.Editor.csproj" />
   </ItemGroup>
