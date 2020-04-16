@@ -31,4 +31,9 @@
     <ProjectReference Include="..\Editor\MonoDevelop.Xml.Editor.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <IncludeCopyLocal Include="MonoDevelop.Xml.Core.dll" />
+    <IncludeCopyLocal Include="MonoDevelop.Xml.Editor.dll" />
+  </ItemGroup>
+
 </Project>

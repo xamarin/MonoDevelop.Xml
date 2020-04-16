@@ -10,7 +10,7 @@ using Mono.Addins.Description;
 
 [assembly: AddinName ("Xml Editor")]
 [assembly: AddinCategory ("IDE extensions")]
-[assembly: AddinDescription ("Editing support for XML files")]
+[assembly: AddinDescription ("Editing support for XML files (new editor)")]
 [assembly: AddinAuthor ("Mikayla Hutchinson")]
 
 [assembly: AddinDependency ("Core", MonoDevelop.BuildInfo.Version)]
