@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <Import Project="..\..\..\MonoDevelop.props" Condition="Exists('..\..\..\MonoDevelop.props')" />
-  <Import Project="$(ReferencesGtk)" />
+  <Import Project="..\..\..\Directory.Build.props" Condition="Exists('..\..\..\Directory.Build.props')" />
+  <Import Project="$(ReferencesGtk)" Condition="Exists('$(ReferencesGtk)')" />
 
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
