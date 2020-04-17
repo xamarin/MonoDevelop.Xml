@@ -2,7 +2,7 @@
 // XmlSchemasPanelWidget.cs
 // 
 // Author:
-//   Michael Hutchinson <mhutchinson@novell.com>
+//   Mikayla Hutchinson <mhutchinson@novell.com>
 //   Matthew Ward
 // 
 // Copyright (C) 2008 Novell, Inc (http://www.novell.com)

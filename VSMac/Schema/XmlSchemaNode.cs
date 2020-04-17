@@ -2,7 +2,7 @@
 // XmlSchemaNode.cs
 //  
 // Author:
-//       Michael Hutchinson <mhutchinson@novell.com>
+//       Mikayla Hutchinson <mhutchinson@novell.com>
 // 
 // Copyright (c) 2011 Novell, Inc.
 // 
