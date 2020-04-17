@@ -7,6 +7,45 @@
 		<Assembly file="MonoDevelop.XmlEditor.dll" />
 	</Extension>
 
+		<!-- Commands -->
+	<Extension path = "/MonoDevelop/Ide/Commands">
+		<Category _name = "Xml Editor" id="XmlEditor">
+			<Command id = "MonoDevelop.Xml.Editor.XmlCommands.CreateSchema"
+					_label = "Create _Schema"
+					description = "Creates a schema from XML"/>
+			<Command id = "MonoDevelop.Xml.Editor.XmlCommands.Validate"
+					_label = "_Validate"
+					description = "Validates the XML against a schema"/>
+			<Command id = "MonoDevelop.Xml.Editor.XmlCommands.AssignStylesheet"
+					_label = "_Assign XSLT..."
+					description = "Assigns a stylesheet to the current xml document"/>
+			<Command id = "MonoDevelop.Xml.Editor.XmlCommands.OpenStylesheet"
+					_label = "_Open XSLT"
+					description = "Opens the assigned stylesheet"/>
+			<Command id = "MonoDevelop.Xml.Editor.XmlCommands.RunXslTransform"
+					_label = "Run XSL_T"
+					description = "Runs an XSL transform"/>
+			<Command id = "MonoDevelop.Xml.Editor.XmlCommands.GoToSchemaDefinition"
+					_label = "_Go to Schema Definition"
+					description = "Jumps to the schema definition"/>
+		</Category>
+	</Extension>
+
+	<!-- XML menu -->
+	<Extension path = "/MonoDevelop/Ide/MainMenu/Edit">
+		<ItemSet id = "XmlMenu" insertafter = "Insert" _label = "_XML" >
+			<CommandItem id = "MonoDevelop.Xml.Editor.XmlCommands.Validate" />
+			<SeparatorItem id = "Separator1" />
+			<CommandItem id = "MonoDevelop.Xml.Editor.XmlCommands.CreateSchema" />
+			<CommandItem id = "MonoDevelop.Xml.Editor.XmlCommands.GoToSchemaDefinition" />
+			<SeparatorItem id = "Separator2" />
+			<CommandItem id = "MonoDevelop.Xml.Editor.XmlCommands.AssignStylesheet"/>
+			<CommandItem id = "MonoDevelop.Xml.Editor.XmlCommands.OpenStylesheet"/>
+			<CommandItem id = "MonoDevelop.Xml.Editor.XmlCommands.RunXslTransform"/>
+			<SeparatorItem/>
+		</ItemSet>
+	</Extension>
+
 	<Extension path="/MonoDevelop/Ide/FileTemplates">
 		<FileTemplate
 			id = "XmlFile"

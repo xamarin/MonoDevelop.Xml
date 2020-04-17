@@ -3,7 +3,7 @@
 // 
 // Authors:
 //   Matt Ward
-//   Michael Hutchinson <mhutchinson@novell.com>
+//   Mikayla Hutchinson <mhutchinson@novell.com>
 // 
 // Copyright:
 //   (C) 2007 Matt Ward

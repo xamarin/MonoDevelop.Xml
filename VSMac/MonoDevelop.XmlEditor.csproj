@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <Import Project="..\..\..\MonoDevelop.props" Condition="Exists('..\..\..\MonoDevelop.props')" />
+  <Import Project="$(ReferencesGtk)" />
 
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
@@ -27,6 +28,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\mono-addins\Mono.Addins\Mono.Addins.csproj" />
     <ProjectReference Include="..\..\..\src\core\MonoDevelop.Core\MonoDevelop.Core.csproj" />
+    <ProjectReference Include="..\..\..\src\core\MonoDevelop.Ide\MonoDevelop.Ide.csproj" />
     <ProjectReference Include="..\Core\MonoDevelop.Xml.Core.csproj" />
     <ProjectReference Include="..\Editor\MonoDevelop.Xml.Editor.csproj" />
   </ItemGroup>
