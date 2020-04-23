@@ -28,12 +28,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Schema;
 using MonoDevelop.Core;
-using MonoDevelop.Xml.Completion;
+using MonoDevelop.Xml.Editor.Completion;
 
 namespace MonoDevelop.Xml.Editor
 {
     // Keeps track of all the schemas that the Xml Editor is aware of.
-    public static class XmlSchemaManager
+    internal static class XmlSchemaManager
     {
         public const string XmlSchemaNamespace = "http://www.w3.org/2001/XMLSchema";
 
@@ -111,7 +111,7 @@ namespace MonoDevelop.Xml.Editor
             return schemaSet;
         }
 
-        public static XmlSchemaCompletionData GetSchemaCompletionDataForFileName(string filename)
+        public static XmlSchemaCompletionProvider GetSchemaCompletionDataForFileName(string filename)
         {
             var association = XmlFileAssociationManager.GetAssociationForFileName(filename);
             if (association == null || association.NamespaceUri.Length == 0)
@@ -147,7 +147,7 @@ namespace MonoDevelop.Xml.Editor
         /// </summary>
         public static void RemoveUserSchema(string namespaceUri)
         {
-            XmlSchemaCompletionData schemaData = UserSchemas[namespaceUri];
+            XmlSchemaCompletionProvider schemaData = UserSchemas[namespaceUri];
             if (schemaData != null)
             {
                 if (File.Exists(schemaData.FileName))
@@ -164,7 +164,7 @@ namespace MonoDevelop.Xml.Editor
         /// Adds the schema to the user schemas folder and makes the
         /// schema available to the xml editor.
         /// </summary>
-        public static void AddUserSchema(XmlSchemaCompletionData schemaData)
+        public static void AddUserSchema(XmlSchemaCompletionProvider schemaData)
         {
             if (UserSchemas[schemaData.NamespaceUri] == null)
             {
@@ -184,7 +184,7 @@ namespace MonoDevelop.Xml.Editor
             }
             else
             {
-                LoggingService.LogWarning("XmlSchemaManager cannot register two schemas with the same namespace '{0}'.", schemaData.NamespaceUri);
+				Completion.LoggingService.LogWarning("XmlSchemaManager cannot register two schemas with the same namespace '{0}'.", schemaData.NamespaceUri);
             }
         }
 
@@ -198,9 +198,9 @@ namespace MonoDevelop.Xml.Editor
         }
 
         // Reads all .xsd files in the specified folder.
-        static void LoadSchemas(List<XmlSchemaCompletionData> list, string folder, bool readOnly)
+        static void LoadSchemas(List<XmlSchemaCompletionProvider> list, string folder, bool readOnly)
         {
-            LoggingService.LogInfo("Reading schemas from: " + folder);
+			Completion.LoggingService.LogDebug("Reading schemas from: " + folder);
             if (Directory.Exists(folder))
             {
                 int count = 0;
@@ -209,7 +209,7 @@ namespace MonoDevelop.Xml.Editor
                     LoadSchema(list, fileName, readOnly);
                     ++count;
                 }
-                LoggingService.LogInfo("XmlSchemaManager found {0} schemas.", count);
+                Completion.LoggingService.LogDebug("XmlSchemaManager found {0} schemas.", count);
             }
         }
 
@@ -219,26 +219,26 @@ namespace MonoDevelop.Xml.Editor
         /// <remarks>
         /// If the schema namespace exists in the collection it is not added.
         /// </remarks>
-        static void LoadSchema(List<XmlSchemaCompletionData> list, string fileName, bool readOnly)
+        static void LoadSchema(List<XmlSchemaCompletionProvider> list, string fileName, bool readOnly)
         {
             try
             {
-                string baseUri = XmlSchemaCompletionData.GetUri(fileName);
-                XmlSchemaCompletionData data = new XmlSchemaCompletionData(baseUri, fileName);
+                string baseUri = XmlSchemaCompletionProvider.GetUri(fileName);
+                var data = new XmlSchemaCompletionProvider(baseUri, fileName);
 
                 if (data.NamespaceUri == null)
                 {
-                    LoggingService.LogWarning(
+                    Completion.LoggingService.LogWarning(
                         "XmlSchemaManager is ignoring schema with no namespace, from file '{0}'.",
                         data.FileName);
                     return;
                 }
 
-                foreach (XmlSchemaCompletionData d in list)
+                foreach (XmlSchemaCompletionProvider d in list)
                 {
                     if (d.NamespaceUri == data.NamespaceUri)
                     {
-                        LoggingService.LogWarning(
+                        Completion.LoggingService.LogWarning(
                             "XmlSchemaManager is ignoring schema with duplicate namespace '{0}'.",
                             data.NamespaceUri);
                         return;
@@ -251,20 +251,20 @@ namespace MonoDevelop.Xml.Editor
             }
             catch (Exception ex)
             {
-                LoggingService.LogError($"XmlSchemaManager is unable to read schema '{fileName}'.", ex);
+                Completion.LoggingService.LogWarning($"XmlSchemaManager is unable to read schema '{fileName}'.", ex);
             }
         }
 
         //FIXME: cache and re-use these instances using a weak reference table
-        static XmlSchemaCompletionData ReadLocalSchema(Uri uri)
+        static XmlSchemaCompletionProvider ReadLocalSchema(Uri uri)
         {
             try
             {
-                return new XmlSchemaCompletionData(uri.ToString(), uri.LocalPath);
+                return new XmlSchemaCompletionProvider(uri.ToString(), uri.LocalPath);
             }
             catch (Exception ex)
             {
-                LoggingService.LogError($"XmlSchemaManager is unable to read schema '{uri}'", ex);
+                Completion.LoggingService.LogWarning($"XmlSchemaManager is unable to read schema '{uri}'", ex);
                 return null;
             }
         }
