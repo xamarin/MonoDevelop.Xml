@@ -34,7 +34,6 @@ using MonoDevelop.Components;
 using MonoDevelop.Components.Extensions;
 using MonoDevelop.Core;
 using MonoDevelop.Ide;
-using MonoDevelop.Ide.Editor;
 using MonoDevelop.Projects;
 using MonoDevelop.Xml.Editor.Completion;
 

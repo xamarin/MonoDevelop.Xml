@@ -34,7 +34,7 @@ using System.Collections.Generic;
 using Gtk;
 using MonoDevelop.Core;
 using MonoDevelop.Ide;
-using MonoDevelop.Xml.Completion;
+using MonoDevelop.Xml.Editor.Completion;
 
 namespace MonoDevelop.Xml.Editor
 {
@@ -43,8 +43,8 @@ namespace MonoDevelop.Xml.Editor
         ListStore registeredSchemasStore;
         ListStore defaultAssociationsStore;
         ListStore registeredSchemasComboModel;
-        List<XmlSchemaCompletionData> addedSchemas = new List<XmlSchemaCompletionData>();
-        List<XmlSchemaCompletionData> removedSchemas = new List<XmlSchemaCompletionData>();
+        List<XmlSchemaCompletionProvider> addedSchemas = new List<XmlSchemaCompletionProvider>();
+        List<XmlSchemaCompletionProvider> removedSchemas = new List<XmlSchemaCompletionProvider>();
         List<string> removedExtensions = new List<string>();
 
         TreeView registeredSchemasView, defaultAssociationsView;
@@ -57,7 +57,7 @@ namespace MonoDevelop.Xml.Editor
 
             //set up tree view for default schemas
             var textRenderer = new CellRendererText();
-            registeredSchemasStore = new ListStore(typeof(XmlSchemaCompletionData));
+            registeredSchemasStore = new ListStore(typeof(XmlSchemaCompletionProvider));
             registeredSchemasView.Model = registeredSchemasStore;
             registeredSchemasView.SearchColumn = -1; // disable the interactive search
 
@@ -188,14 +188,14 @@ namespace MonoDevelop.Xml.Editor
             ShowAll();
         }
 
-        XmlSchemaCompletionData GetSchema(TreeIter iter)
+        XmlSchemaCompletionProvider GetSchema(TreeIter iter)
         {
             return GetSchema(registeredSchemasStore, iter);
         }
 
-        static XmlSchemaCompletionData GetSchema(ListStore registeredSchemasStore, TreeIter iter)
+        static XmlSchemaCompletionProvider GetSchema(ListStore registeredSchemasStore, TreeIter iter)
         {
-            return (XmlSchemaCompletionData)registeredSchemasStore.GetValue(iter, 0);
+            return (XmlSchemaCompletionProvider)registeredSchemasStore.GetValue(iter, 0);
         }
 
         IEnumerable<object> WalkStore(TreeModel model, int column)
@@ -223,17 +223,17 @@ namespace MonoDevelop.Xml.Editor
 
         #region Schema accessors
 
-        public List<XmlSchemaCompletionData> AddedSchemas
+        public List<XmlSchemaCompletionProvider> AddedSchemas
         {
             get { return addedSchemas; }
         }
 
-        public List<XmlSchemaCompletionData> RemovedSchemas
+        public List<XmlSchemaCompletionProvider> RemovedSchemas
         {
             get { return removedSchemas; }
         }
 
-        XmlSchemaCompletionData GetSelectedSchema()
+        XmlSchemaCompletionProvider GetSelectedSchema()
         {
             TreeIter iter;
             if (registeredSchemasView.Selection.GetSelected(out iter))
@@ -242,28 +242,28 @@ namespace MonoDevelop.Xml.Editor
         }
 
         // Checks that the schema namespace does not already exist.
-        XmlSchemaCompletionData GetRegisteredSchema(string namespaceUri)
+        XmlSchemaCompletionProvider GetRegisteredSchema(string namespaceUri)
         {
-            foreach (XmlSchemaCompletionData schema in WalkStore(registeredSchemasStore, 0))
+            foreach (XmlSchemaCompletionProvider schema in WalkStore(registeredSchemasStore, 0))
                 if (schema.NamespaceUri == namespaceUri)
                     return schema;
             return null;
         }
 
-        XmlSchemaCompletionData GetRegisteredSchema(TreeIter iter)
+        XmlSchemaCompletionProvider GetRegisteredSchema(TreeIter iter)
         {
-            return (XmlSchemaCompletionData)registeredSchemasStore.GetValue(iter, 0);
+            return (XmlSchemaCompletionProvider)registeredSchemasStore.GetValue(iter, 0);
         }
 
         public void LoadUserSchemas(XmlSchemaCompletionDataCollection val)
         {
             //add user schemas
             registeredSchemasStore.Clear();
-            foreach (XmlSchemaCompletionData schema in val)
+            foreach (XmlSchemaCompletionProvider schema in val)
                 AppendSchemaToStore(schema);
 
             //add built-in schemas that aren't overriden by a matching user schema
-            foreach (XmlSchemaCompletionData schema in XmlSchemaManager.BuiltinSchemas)
+            foreach (XmlSchemaCompletionProvider schema in XmlSchemaManager.BuiltinSchemas)
                 if (val[schema.NamespaceUri] == null)
                     AppendSchemaToStore(schema);
         }
@@ -389,12 +389,12 @@ namespace MonoDevelop.Xml.Editor
 
         #region Adding/removing schemas
 
-        TreeIter AppendSchemaToStore(XmlSchemaCompletionData schema)
+        TreeIter AppendSchemaToStore(XmlSchemaCompletionProvider schema)
         {
             return registeredSchemasStore.AppendValues(schema);
         }
 
-        TreeIter AddRegisteredSchema(XmlSchemaCompletionData schema)
+        TreeIter AddRegisteredSchema(XmlSchemaCompletionProvider schema)
         {
             if (removedSchemas.Contains(schema))
                 removedSchemas.Remove(schema);
@@ -404,7 +404,7 @@ namespace MonoDevelop.Xml.Editor
             return AppendSchemaToStore(schema);
         }
 
-        void RemoveRegisteredSchema(XmlSchemaCompletionData schema)
+        void RemoveRegisteredSchema(XmlSchemaCompletionProvider schema)
         {
             if (addedSchemas.Contains(schema) && !schema.ReadOnly)
                 addedSchemas.Remove(schema);
@@ -426,7 +426,7 @@ namespace MonoDevelop.Xml.Editor
             //restore built-in schema
             if (!schema.ReadOnly)
             {
-                XmlSchemaCompletionData builtin = XmlSchemaManager.BuiltinSchemas[schema.NamespaceUri];
+                XmlSchemaCompletionProvider builtin = XmlSchemaManager.BuiltinSchemas[schema.NamespaceUri];
                 if (builtin != null)
                     AppendSchemaToStore(builtin);
             }
@@ -434,7 +434,7 @@ namespace MonoDevelop.Xml.Editor
 
         protected virtual void removeRegisteredSchema(object sender, EventArgs e)
         {
-            XmlSchemaCompletionData schema = GetSelectedSchema();
+            XmlSchemaCompletionProvider schema = GetSelectedSchema();
             if (schema == null)
                 throw new InvalidOperationException("Should not be able to activate removeRegisteredSchema button while no row is selected.");
 
@@ -454,10 +454,10 @@ namespace MonoDevelop.Xml.Editor
             string shortName = System.IO.Path.GetFileName(fileName);
 
             //load the schema
-            XmlSchemaCompletionData schema = null;
+            XmlSchemaCompletionProvider schema = null;
             try
             {
-                schema = new XmlSchemaCompletionData(fileName);
+                schema = new XmlSchemaCompletionProvider(fileName);
             }
             catch (Exception ex)
             {
@@ -475,7 +475,7 @@ namespace MonoDevelop.Xml.Editor
             }
 
             //if namaspace conflict, ask user whether they want to replace existing schema
-            XmlSchemaCompletionData oldSchema = GetRegisteredSchema(schema.NamespaceUri);
+            XmlSchemaCompletionProvider oldSchema = GetRegisteredSchema(schema.NamespaceUri);
             if (oldSchema != null)
             {
                 bool replace = MessageService.Confirm(
