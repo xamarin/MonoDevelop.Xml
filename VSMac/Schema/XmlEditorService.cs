@@ -51,15 +51,15 @@ namespace MonoDevelop.Xml.Editor
         /// Creates a XmlTextWriter using the current text editor
         /// properties for indentation.
         /// </summary>
-        public static XmlTextWriter CreateXmlTextWriter(MonoDevelop.Ide.Editor.TextEditor doc, TextWriter textWriter)
+        public static XmlTextWriter CreateXmlTextWriter(TextWriter textWriter, bool useTabs, int tabSize)
         {
             var xmlWriter = new XmlTextWriter(textWriter)
             {
                 Formatting = System.Xml.Formatting.Indented
             };
-            if (doc.Options.TabsToSpaces)
+            if (!useTabs)
             {
-                xmlWriter.Indentation = doc.Options.TabSize;
+                xmlWriter.Indentation = tabSize;
                 xmlWriter.IndentChar = ' ';
             }
             else
@@ -70,14 +70,14 @@ namespace MonoDevelop.Xml.Editor
             return xmlWriter;
         }
 
-        public static string CreateSchema(MonoDevelop.Ide.Editor.TextEditor doc, string xml)
+        public static string CreateSchema(string xml, bool useTabs, int tabSize)
         {
             using (var dataSet = new System.Data.DataSet())
             {
                 dataSet.ReadXml(new StringReader(xml), System.Data.XmlReadMode.InferSchema);
                 using (var writer = new EncodedStringWriter(Encoding.UTF8))
                 {
-                    using (var xmlWriter = CreateXmlTextWriter(doc, writer))
+                    using (var xmlWriter = CreateXmlTextWriter(writer, useTabs, tabSize))
                     {
                         dataSet.WriteXmlSchema(xmlWriter);
                         return writer.ToString();

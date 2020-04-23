@@ -30,7 +30,11 @@
 					description = "Jumps to the schema definition"/>
 		</Category>
 	</Extension>
-
+	
+    <Extension path = "/MonoDevelop/TextEditor/CommandMapping">
+        <Map id="MonoDevelop.Xml.Editor.XmlCommands.CreateSchema" argsType="Microsoft.VisualStudio.Text.Editor.Commanding.Commands.Xml.CreateSchemaCommandArgs" />
+    </Extension>
+    
 	<!-- XML menu -->
 	<Extension path = "/MonoDevelop/Ide/MainMenu/Edit">
 		<ItemSet id = "XmlMenu" insertafter = "Insert" _label = "_XML" >
