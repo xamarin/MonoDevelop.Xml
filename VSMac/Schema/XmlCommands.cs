@@ -22,15 +22,22 @@
 // THE SOFTWARE.
 
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.Composition;
+using System.Threading.Tasks;
+using System.Xml.Schema;
 using Microsoft.VisualStudio.Commanding;
 using Microsoft.VisualStudio.Platform;
 using Microsoft.VisualStudio.Utilities;
 using MonoDevelop.Core;
 using MonoDevelop.Ide;
 using MonoDevelop.Ide.Tasks;
+using MonoDevelop.Projects;
 using MonoDevelop.TextEditor;
+using MonoDevelop.Xml.Dom;
 using MonoDevelop.Xml.Editor;
+using MonoDevelop.Xml.Editor.Completion;
+using MonoDevelop.Xml.Parser;
 
 namespace MonoDevelop.Xml.Editor
 {
@@ -104,8 +111,6 @@ namespace Microsoft.VisualStudio.Text.Editor.Commanding.Commands.Xml
 	{
 		public string DisplayName => "Xml Command Handler";
 
-		string INamed.DisplayName => throw new NotImplementedException ();
-
 		bool ICommandHandler<CreateSchemaCommandArgs>.ExecuteCommand (CreateSchemaCommandArgs args, CommandExecutionContext executionContext)
 		{
 			try {
@@ -124,7 +129,7 @@ namespace Microsoft.VisualStudio.Text.Editor.Commanding.Commands.Xml
 						monitor.ReportSuccess (GettextCatalog.GetString ("Schema created."));
 					} catch (Exception ex) {
 						string msg = GettextCatalog.GetString ("Error creating XML schema.");
-						LoggingService.LogError (msg, ex);
+						MonoDevelop.Core.LoggingService.LogError (msg, ex);
 						monitor.ReportError (msg, ex);
 					}
 				}
@@ -138,11 +143,77 @@ namespace Microsoft.VisualStudio.Text.Editor.Commanding.Commands.Xml
 
 		bool ICommandHandler<ValidateCommandArgs>.ExecuteCommand (ValidateCommandArgs args, CommandExecutionContext executionContext)
 		{
+			IdeServices.TaskService.Errors.Clear ();
+
+			var buffer = args.SubjectBuffer;
+			string xml = buffer.CurrentSnapshot.GetText ();
+			string filePath = buffer.GetFilePathOrNull () ?? "file.xml";
+
+			ValidateAsync (xml, filePath).Ignore ();
+
 			return true;
+		}
+
+		private async Task ValidateAsync(string xml, FilePath filePath)
+		{
+			List<BuildError> errors;
+
+			using (ProgressMonitor monitor = XmlEditorService.GetMonitor ()) {
+				monitor.BeginTask (GettextCatalog.GetString ("Validating {0}...", filePath.FileName), 0);
+
+				if (filePath.HasExtension (".xsd"))
+					errors = await XmlEditorService.ValidateSchema (xml, filePath, monitor.CancellationToken);
+				else
+					errors = await XmlEditorService.ValidateXml (xml, filePath, monitor.CancellationToken);
+
+				if (errors.Count > 0) {
+					foreach (var err in errors) {
+						monitor.Log.WriteLine (err);
+					}
+					monitor.ReportError ("Validation failed");
+				} else {
+					monitor.ReportSuccess ("Validation succeeded");
+				}
+
+				UpdateErrors (errors);
+			}
+		}
+
+		void UpdateErrors (List<BuildError> errors)
+		{
+			IdeServices.TaskService.Errors.ClearByOwner (this);
+			if (errors.Count == 0)
+				return;
+			foreach (var error in errors) {
+				IdeServices.TaskService.Errors.Add (new TaskListEntry (error, owner: this));
+			}
+			IdeServices.TaskService.ShowErrors ();
 		}
 
 		bool ICommandHandler<GoToSchemaDefinitionCommandArgs>.ExecuteCommand (GoToSchemaDefinitionCommandArgs args, CommandExecutionContext executionContext)
 		{
+			var buffer = args.SubjectBuffer;
+			string xml = buffer.CurrentSnapshot.GetText ();
+			string filePath = buffer.GetFilePathOrNull () ?? "file.xml";
+			var context = XmlEditorContext.Get (args.TextView);
+
+			try {
+				XmlSchemaObject schemaObject = context.GetSchemaObjectSelected ();
+
+				// Open schema if resolved
+				if (schemaObject != null && schemaObject.SourceUri != null && schemaObject.SourceUri.Length > 0) {
+
+					string schemaFileName = schemaObject.SourceUri.Replace ("file:/", String.Empty);
+					IdeApp.Workbench.OpenDocument (
+						schemaFileName,
+						Math.Max (1, schemaObject.LineNumber),
+						Math.Max (1, schemaObject.LinePosition));
+				}
+			} catch (Exception ex) {
+				MonoDevelop.Core.LoggingService.LogError ("Could not open document.", ex);
+				MessageService.ShowError ("Could not open document.", ex);
+			}
+
 			return true;
 		}
 
