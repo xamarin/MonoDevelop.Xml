@@ -32,7 +32,12 @@
 	</Extension>
 	
     <Extension path = "/MonoDevelop/TextEditor/CommandMapping">
+        <Map id="MonoDevelop.Xml.Editor.XmlCommands.Validate" argsType="Microsoft.VisualStudio.Text.Editor.Commanding.Commands.Xml.ValidateCommandArgs" />
         <Map id="MonoDevelop.Xml.Editor.XmlCommands.CreateSchema" argsType="Microsoft.VisualStudio.Text.Editor.Commanding.Commands.Xml.CreateSchemaCommandArgs" />
+        <Map id="MonoDevelop.Xml.Editor.XmlCommands.GoToSchemaDefinition" argsType="Microsoft.VisualStudio.Text.Editor.Commanding.Commands.Xml.GoToSchemaDefinitionCommandArgs" />
+        <Map id="MonoDevelop.Xml.Editor.XmlCommands.AssignStylesheet" argsType="Microsoft.VisualStudio.Text.Editor.Commanding.Commands.Xml.AssignStylesheetCommandArgs" />
+        <Map id="MonoDevelop.Xml.Editor.XmlCommands.OpenStylesheet" argsType="Microsoft.VisualStudio.Text.Editor.Commanding.Commands.Xml.OpenStylesheetCommandArgs" />
+        <Map id="MonoDevelop.Xml.Editor.XmlCommands.RunXslTransform" argsType="Microsoft.VisualStudio.Text.Editor.Commanding.Commands.Xml.RunXslTransformCommandArgs" />
     </Extension>
     
 	<!-- XML menu -->

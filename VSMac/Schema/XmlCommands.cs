@@ -47,9 +47,44 @@ namespace MonoDevelop.Xml.Editor
 
 namespace Microsoft.VisualStudio.Text.Editor.Commanding.Commands.Xml
 {
+	public sealed class ValidateCommandArgs : EditorCommandArgs
+	{
+		public ValidateCommandArgs (ITextView textView, ITextBuffer subjectBuffer) : base (textView, subjectBuffer)
+		{
+		}
+	}
+
 	public sealed class CreateSchemaCommandArgs : EditorCommandArgs
 	{
 		public CreateSchemaCommandArgs (ITextView textView, ITextBuffer subjectBuffer) : base (textView, subjectBuffer)
+		{
+		}
+	}
+
+	public sealed class GoToSchemaDefinitionCommandArgs : EditorCommandArgs
+	{
+		public GoToSchemaDefinitionCommandArgs (ITextView textView, ITextBuffer subjectBuffer) : base (textView, subjectBuffer)
+		{
+		}
+	}
+
+	public sealed class AssignStylesheetCommandArgs : EditorCommandArgs
+	{
+		public AssignStylesheetCommandArgs (ITextView textView, ITextBuffer subjectBuffer) : base (textView, subjectBuffer)
+		{
+		}
+	}
+
+	public sealed class OpenStylesheetCommandArgs : EditorCommandArgs
+	{
+		public OpenStylesheetCommandArgs (ITextView textView, ITextBuffer subjectBuffer) : base (textView, subjectBuffer)
+		{
+		}
+	}
+
+	public sealed class RunXslTransformCommandArgs : EditorCommandArgs
+	{
+		public RunXslTransformCommandArgs (ITextView textView, ITextBuffer subjectBuffer) : base (textView, subjectBuffer)
 		{
 		}
 	}
@@ -59,9 +94,17 @@ namespace Microsoft.VisualStudio.Text.Editor.Commanding.Commands.Xml
 	[TextViewRole (PredefinedTextViewRoles.Interactive)]
 	[Export]
 	[Export (typeof (ICommandHandler))]
-	public class XmlCommandHandler : ICommandHandler<CreateSchemaCommandArgs>
+	public class XmlCommandHandler :
+		ICommandHandler<ValidateCommandArgs>,
+		ICommandHandler<CreateSchemaCommandArgs>,
+		ICommandHandler<GoToSchemaDefinitionCommandArgs>,
+		ICommandHandler<AssignStylesheetCommandArgs>,
+		ICommandHandler<OpenStylesheetCommandArgs>,
+		ICommandHandler<RunXslTransformCommandArgs>
 	{
 		public string DisplayName => "Xml Command Handler";
+
+		string INamed.DisplayName => throw new NotImplementedException ();
 
 		bool ICommandHandler<CreateSchemaCommandArgs>.ExecuteCommand (CreateSchemaCommandArgs args, CommandExecutionContext executionContext)
 		{
@@ -93,9 +136,36 @@ namespace Microsoft.VisualStudio.Text.Editor.Commanding.Commands.Xml
 			return false;
 		}
 
-		CommandState ICommandHandler<CreateSchemaCommandArgs>.GetCommandState (CreateSchemaCommandArgs args)
+		bool ICommandHandler<ValidateCommandArgs>.ExecuteCommand (ValidateCommandArgs args, CommandExecutionContext executionContext)
 		{
-			return CommandState.Available;
+			return true;
 		}
+
+		bool ICommandHandler<GoToSchemaDefinitionCommandArgs>.ExecuteCommand (GoToSchemaDefinitionCommandArgs args, CommandExecutionContext executionContext)
+		{
+			return true;
+		}
+
+		bool ICommandHandler<AssignStylesheetCommandArgs>.ExecuteCommand (AssignStylesheetCommandArgs args, CommandExecutionContext executionContext)
+		{
+			return true;
+		}
+
+		bool ICommandHandler<OpenStylesheetCommandArgs>.ExecuteCommand (OpenStylesheetCommandArgs args, CommandExecutionContext executionContext)
+		{
+			return true;
+		}
+
+		bool ICommandHandler<RunXslTransformCommandArgs>.ExecuteCommand (RunXslTransformCommandArgs args, CommandExecutionContext executionContext)
+		{
+			return true;
+		}
+
+		CommandState ICommandHandler<ValidateCommandArgs>.GetCommandState (ValidateCommandArgs args) => CommandState.Available;
+		CommandState ICommandHandler<CreateSchemaCommandArgs>.GetCommandState (CreateSchemaCommandArgs args) => CommandState.Available;
+		CommandState ICommandHandler<GoToSchemaDefinitionCommandArgs>.GetCommandState (GoToSchemaDefinitionCommandArgs args) => CommandState.Available;
+		CommandState ICommandHandler<AssignStylesheetCommandArgs>.GetCommandState (AssignStylesheetCommandArgs args) => CommandState.Available;
+		CommandState ICommandHandler<OpenStylesheetCommandArgs>.GetCommandState (OpenStylesheetCommandArgs args) => CommandState.Available;
+		CommandState ICommandHandler<RunXslTransformCommandArgs>.GetCommandState (RunXslTransformCommandArgs args) => CommandState.Available;
 	}
 }
