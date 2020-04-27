@@ -24,12 +24,16 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
+using System.IO;
+using System.Text;
 using System.Threading.Tasks;
+using System.Xml;
 using System.Xml.Schema;
 using Microsoft.VisualStudio.Commanding;
 using Microsoft.VisualStudio.Platform;
 using Microsoft.VisualStudio.Utilities;
 using MonoDevelop.Core;
+using MonoDevelop.Core.Text;
 using MonoDevelop.Ide;
 using MonoDevelop.Ide.Tasks;
 using MonoDevelop.Projects;
@@ -219,16 +223,103 @@ namespace Microsoft.VisualStudio.Text.Editor.Commanding.Commands.Xml
 
 		bool ICommandHandler<AssignStylesheetCommandArgs>.ExecuteCommand (AssignStylesheetCommandArgs args, CommandExecutionContext executionContext)
 		{
+			string fileName = XmlEditorService.BrowseForStylesheetFile ();
+			var context = XmlEditorContext.Get (args.TextView);
+
+			if (!string.IsNullOrEmpty (fileName)) {
+				context.StylesheetFileName = fileName;
+			}
+
 			return true;
 		}
 
 		bool ICommandHandler<OpenStylesheetCommandArgs>.ExecuteCommand (OpenStylesheetCommandArgs args, CommandExecutionContext executionContext)
 		{
+			var context = XmlEditorContext.Get (args.TextView);
+
+			if (!string.IsNullOrEmpty (context.StylesheetFileName)) {
+
+				try {
+					IdeApp.Workbench.OpenDocument (context.StylesheetFileName);
+				} catch (Exception ex) {
+					MonoDevelop.Xml.Editor.Completion.LoggingService.LogWarning ("Could not open document.", ex);
+					MessageService.ShowError ("Could not open document.", ex);
+				}
+			}
+
 			return true;
+		}
+
+		private string GetFileContent(string filePath)
+		{
+			string result = null;
+
+			var existingDocument = IdeServices.DocumentManager.GetDocument (filePath);
+			if (existingDocument != null) {
+				result = existingDocument.GetContent<ITextBuffer> ()?.CurrentSnapshot.GetText ();
+				if (result != null) {
+					return result;
+				}
+			}
+
+			result = TextFileUtility.ReadAllText (filePath);
+			return result;
 		}
 
 		bool ICommandHandler<RunXslTransformCommandArgs>.ExecuteCommand (RunXslTransformCommandArgs args, CommandExecutionContext executionContext)
 		{
+			var context = XmlEditorContext.Get (args.TextView);
+			if (string.IsNullOrEmpty (context.StylesheetFileName)) {
+
+				context.StylesheetFileName = XmlEditorService.BrowseForStylesheetFile ();
+
+				if (string.IsNullOrEmpty (context.StylesheetFileName)) {
+					return true;
+				}
+			}
+
+			FilePath stylesheetFileName = context.StylesheetFileName;
+
+			using (ProgressMonitor monitor = XmlEditorService.GetMonitor ()) {
+				try {
+					string xsltContent;
+					try {
+						xsltContent = GetFileContent (stylesheetFileName);
+					} catch (System.IO.IOException) {
+						monitor.ReportError (
+							GettextCatalog.GetString ("Error reading file '{0}'.", stylesheetFileName), null);
+						return false;
+					}
+
+					(var xslt, var errors) = XmlEditorService.CompileStylesheet (xsltContent, stylesheetFileName);
+					if (xslt == null) {
+						monitor.ReportError (GettextCatalog.GetString ("Failed to compile stylesheet"));
+						return true;
+					}
+
+					string FileName = context.FilePath;
+					string newFileName = XmlEditorService.GenerateFileName (FileName, "-transformed{0}.xml");
+
+					monitor.BeginTask (GettextCatalog.GetString ("Executing transform..."), 1);
+
+					var output = new EncodedStringWriter (Encoding.UTF8);
+					var snapshot = args.TextView.TextBuffer.CurrentSnapshot;
+					using (XmlReader input = XmlReader.Create (new StringReader (snapshot.GetText()), null, FileName)) {
+						using (XmlTextWriter writer = XmlEditorService.CreateXmlTextWriter (output, useTabs: false, tabSize: 4)) {
+							xslt.Transform (input, writer);
+						}
+					}
+					IdeApp.Workbench.NewDocument (newFileName, "application/xml", output.ToString ());
+
+					monitor.ReportSuccess (GettextCatalog.GetString ("Transform completed."));
+					monitor.EndTask ();
+				} catch (Exception ex) {
+					string msg = GettextCatalog.GetString ("Could not run transform.");
+					monitor.ReportError (msg, ex);
+					monitor.EndTask ();
+				}
+			}
+
 			return true;
 		}
 

@@ -78,6 +78,8 @@ namespace MonoDevelop.Xml.Editor
 			SetDefaultSchema ();
 		}
 
+		public string StylesheetFileName { get; set; }
+
 		private void TextView_Closed (object sender, EventArgs e)
 		{
 			XmlEditorOptions.XmlFileAssociationChanged -= HandleXmlFileAssociationChanged;
