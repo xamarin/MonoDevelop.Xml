@@ -192,6 +192,16 @@ namespace MonoDevelop.Xml.Editor
 			}
 		}
 
+		private XmlSpineParser GetSpineParser(SnapshotPoint position = default)
+		{
+			if (position == default) {
+				position = textView.Caret.Position.BufferPosition;
+			}
+
+			var spineParser = XmlParser.GetSpineParser (position);
+			return spineParser;
+		}
+
 		/// <summary>
 		/// Gets the XmlSchemaObject that defines the currently selected xml element or attribute.
 		/// </summary>
@@ -205,19 +215,21 @@ namespace MonoDevelop.Xml.Editor
 			XmlElementPath path = GetElementPath ();
 
 			//attribute name under cursor, if valid
-
 			string attributeName = null;
-			XAttribute xatt = Tracker.Engine.Nodes.Peek (0) as XAttribute;
+			var position = textView.Caret.Position.BufferPosition;
+			var spineParser = XmlParser.GetSpineParser (position);
+
+			XAttribute xatt = spineParser.Spine.Peek (0) as XAttribute;
 			if (xatt != null) {
 				XName xattName = xatt.Name;
-				if (Tracker.Engine.CurrentState is XmlNameState) {
-					xattName = GetCompleteName ();
+				if (spineParser.CurrentState is XmlNameState) {
+					xattName = spineParser.GetCompleteName (position.Snapshot);
 				}
 				attributeName = xattName.FullName;
 			}
 
 			// Find schema definition object.
-			XmlSchemaCompletionProvider schemaCompletionData = XmlSchemaManager.SchemaCompletionDataItems[path];
+			XmlSchemaCompletionProvider schemaCompletionData = FindSchema(path);
 
 			XmlSchemaObject schemaObject = null;
 			if (schemaCompletionData != null) {
@@ -255,19 +267,18 @@ namespace MonoDevelop.Xml.Editor
 
 		protected List<XObject> GetCurrentPath ()
 		{
-			if (tracker == null)
-				return null;
+			var position = textView.Caret.Position.BufferPosition;
+			var spineParser = GetSpineParser (position);
 
-			tracker.UpdateEngine ();
-			var path = new List<XObject> (tracker.Engine.Nodes);
+			var path = new List<XObject> (spineParser.Spine);
 
 			//remove the root XDocument
 			path.RemoveAt (path.Count - 1);
 
 			//complete incomplete XName if present
-			if (tracker.Engine.CurrentState is XmlNameState && path[0] is INamedXObject) {
+			if (spineParser.CurrentState is XmlNameState && path[0] is INamedXObject) {
 				path[0] = path[0].ShallowCopy ();
-				XName completeName = GetCompleteName ();
+				XName completeName = spineParser.GetCompleteName (position.Snapshot);
 				((INamedXObject)path[0]).Name = completeName;
 			}
 			path.Reverse ();
@@ -382,12 +393,12 @@ namespace MonoDevelop.Xml.Editor
 
 		public XmlSchemaCompletionProvider FindSchemaFromFileName (string fileName)
 		{
-			return SchemaService.GetSchemaFromFileName (fileName);
+			return XmlSchemaManager.SchemaCompletionDataItems.GetSchemaFromFileName (fileName);
 		}
 
 		public XmlSchemaCompletionProvider FindSchema (string namespaceUri)
 		{
-			return SchemaService.GetSchemaFromNamespace (namespaceUri);
+			return XmlSchemaManager.SchemaCompletionDataItems[namespaceUri];
 		}
 
 		public XmlSchemaCompletionProvider FindSchema (XmlElementPath path)
@@ -398,7 +409,7 @@ namespace MonoDevelop.Xml.Editor
 		/// <summary>
 		/// Finds the schema given the xml element path.
 		/// </summary>
-		public XmlSchemaCompletionProvider FindSchema (XmlElementPath path)
+		public XmlSchemaCompletionProvider FindSchema (IXmlSchemaCompletionDataCollection schemaCompletionDataItems, XmlElementPath path)
 		{
 			if (path.Elements.Count > 0) {
 				string namespaceUri = path.Elements[0].Namespace;
