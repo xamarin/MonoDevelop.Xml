@@ -46,6 +46,7 @@ namespace MonoDevelop.Xml.Editor
 {
 	[Export (typeof (ITextViewCreationListener))]
 	[ContentType(XmlContentTypeNames.XmlCore)]
+	[TextViewRole (PredefinedTextViewRoles.Editable)]
 	class XmlTextViewCreationListener : ITextViewCreationListener
 	{
 		public void TextViewCreated (ITextView textView)
@@ -147,7 +148,8 @@ namespace MonoDevelop.Xml.Editor
 
 		public static XmlEditorContext Get(ITextView textView)
 		{
-			return textView.Properties.GetProperty<XmlEditorContext> (typeof (XmlEditorContext));
+			textView.Properties.TryGetProperty<XmlEditorContext> (typeof (XmlEditorContext), out var result);
+			return result;
 		}
 
 		void SetDefaultSchema ()
