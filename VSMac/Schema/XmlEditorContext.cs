@@ -131,7 +131,6 @@ namespace MonoDevelop.Xml.Editor
 
 		private void UpdateOnCaretMove ()
 		{
-			throw new NotImplementedException ();
 		}
 
 		public FilePath FilePath => TextBuffer.GetFilePathOrNull ();
