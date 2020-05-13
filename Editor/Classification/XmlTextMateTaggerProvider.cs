@@ -10,7 +10,7 @@ using Microsoft.VisualStudio.Utilities;
 
 namespace MonoDevelop.Xml.Editor.Classification
 {
-	[Export (typeof (ITaggerProvider))]
+	//[Export (typeof (ITaggerProvider))]
 	[TagType (typeof (IClassificationTag))]
 	[ContentType (XmlContentTypeNames.Xml)]
 	[ContentType (XmlContentTypeNames.Xsd)]

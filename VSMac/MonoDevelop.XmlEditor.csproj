@@ -6,6 +6,7 @@
 
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
   
   <PropertyGroup>
