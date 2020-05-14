@@ -40,5 +40,9 @@
     <IncludeCopyLocal Include="MonoDevelop.Xml.Core.dll" />
     <IncludeCopyLocal Include="MonoDevelop.Xml.Editor.dll" />
   </ItemGroup>
+  
+  <ItemGroup>
+    <EmbeddedResource Include="..\Core\Formatting\MonoXmlPolicy.xml" />
+  </ItemGroup>
 
 </Project>
