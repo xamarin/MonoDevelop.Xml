@@ -25,6 +25,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
@@ -37,10 +38,12 @@ using MonoDevelop.Core.Text;
 using MonoDevelop.Ide;
 using MonoDevelop.Ide.Tasks;
 using MonoDevelop.Projects;
+using MonoDevelop.Projects.Policies;
 using MonoDevelop.TextEditor;
 using MonoDevelop.Xml.Dom;
 using MonoDevelop.Xml.Editor;
 using MonoDevelop.Xml.Editor.Completion;
+using MonoDevelop.Xml.Formatting;
 using MonoDevelop.Xml.Parser;
 
 namespace MonoDevelop.Xml.Editor
@@ -111,9 +114,28 @@ namespace Microsoft.VisualStudio.Text.Editor.Commanding.Commands.Xml
 		ICommandHandler<GoToSchemaDefinitionCommandArgs>,
 		ICommandHandler<AssignStylesheetCommandArgs>,
 		ICommandHandler<OpenStylesheetCommandArgs>,
-		ICommandHandler<RunXslTransformCommandArgs>
+		ICommandHandler<RunXslTransformCommandArgs>,
+		ICommandHandler<FormatDocumentCommandArgs>
 	{
 		public string DisplayName => "Xml Command Handler";
+
+		bool ICommandHandler<FormatDocumentCommandArgs>.ExecuteCommand (FormatDocumentCommandArgs args, CommandExecutionContext executionContext)
+		{
+			string mimeType = "application/xml";
+			var policyParent = PolicyService.DefaultPolicies;
+			var mimeTypeInheritanceChain = IdeServices.DesktopService.GetMimeTypeInheritanceChain (mimeType).ToList ();
+			var txtPol = policyParent.Get<TextStylePolicy> (mimeTypeInheritanceChain);
+			var xmlPol = policyParent.Get<XmlFormattingPolicy> (mimeTypeInheritanceChain);
+
+			var buffer = args.SubjectBuffer;
+			string inputText = buffer.CurrentSnapshot.GetText ();
+			var text = XmlFormatter.FormatXml (txtPol, xmlPol, inputText);
+			using (var edit = buffer.CreateEdit (EditOptions.DefaultMinimalChange, null, null)) {
+				edit.Replace (0, inputText.Length, text);
+			}
+
+			return true;
+		}
 
 		bool ICommandHandler<CreateSchemaCommandArgs>.ExecuteCommand (CreateSchemaCommandArgs args, CommandExecutionContext executionContext)
 		{
@@ -329,5 +351,6 @@ namespace Microsoft.VisualStudio.Text.Editor.Commanding.Commands.Xml
 		CommandState ICommandHandler<AssignStylesheetCommandArgs>.GetCommandState (AssignStylesheetCommandArgs args) => CommandState.Available;
 		CommandState ICommandHandler<OpenStylesheetCommandArgs>.GetCommandState (OpenStylesheetCommandArgs args) => CommandState.Available;
 		CommandState ICommandHandler<RunXslTransformCommandArgs>.GetCommandState (RunXslTransformCommandArgs args) => CommandState.Available;
+		CommandState ICommandHandler<FormatDocumentCommandArgs>.GetCommandState (FormatDocumentCommandArgs args) => CommandState.Available;
 	}
 }
