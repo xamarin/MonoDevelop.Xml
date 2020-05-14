@@ -132,6 +132,7 @@ namespace Microsoft.VisualStudio.Text.Editor.Commanding.Commands.Xml
 			var text = XmlFormatter.FormatXml (txtPol, xmlPol, inputText);
 			using (var edit = buffer.CreateEdit (EditOptions.DefaultMinimalChange, null, null)) {
 				edit.Replace (0, inputText.Length, text);
+				edit.Apply ();
 			}
 
 			return true;
