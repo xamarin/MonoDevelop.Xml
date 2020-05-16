@@ -15,19 +15,17 @@ namespace MonoDevelop.Xml.Tests
 	[TestFixture]
 	public class ClassifierTests : EditorTestBase
 	{
-		public const char VirtualSpaceMarker = '→';
-		public const char SelectionStartMarker = '{';
-		public const char SelectionEndMarker = '}';
-
 		protected override string ContentTypeName => XmlContentTypeNames.XmlCore;
 
 		protected override (EditorEnvironment, EditorCatalog) InitializeEnvironment () => XmlTestEnvironment.EnsureInitialized ();
 
 		[Test]
-		public void TestClassifier ()
-		{
-			var provider = new XmlClassifierProvider (Catalog.ClassificationTypeRegistryService);
-			var text = @"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
+
+		[TestCase("<!--x-->", @"[0..2) xml - delimiter
+[2..7) xml - comment
+[7..8) xml - delimiter")]
+
+		[TestCase(@"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
 <X>
 <n:T></n:T>
 <X/>
@@ -37,15 +35,8 @@ namespace MonoDevelop.Xml.Tests
 <A>a &lt;</A>
 <A><![CDATA[b]]></A>
 <!-- c -->
-</X>";
-			var buffer = CreateTextBuffer (text);
-			var classifier = new XmlClassifier (buffer, provider.Types);
-			var snapshot = buffer.CurrentSnapshot;
-			var spans = classifier.GetClassificationSpans (new SnapshotSpan (snapshot, 0, snapshot.Length));
-			var actual = string.Join("\r\n", spans
-				.Select (s => $"{s.Span.Span} {s.ClassificationType.Classification}")
-				);
-			var expected = @"[0..1) xml - delimiter
+</X>",
+@"[0..1) xml - delimiter
 [1..54) xml - processing instruction
 [54..55) xml - delimiter
 [55..57) text
@@ -110,15 +101,25 @@ namespace MonoDevelop.Xml.Tests
 [159..160) xml - name
 [160..161) xml - delimiter
 [161..163) text
-[163..166) xml - delimiter
-[166..172) xml - comment
+[163..165) xml - delimiter
+[165..172) xml - comment
 [172..173) xml - delimiter
 [173..175) text
 [175..177) xml - delimiter
 [177..178) xml - name
-[178..179) xml - delimiter";
+[178..179) xml - delimiter")]
 
-			Assert.AreEqual (expected, actual);
+		public void TestClassifier (string xml, string expectedClassifications)
+		{
+			var provider = new XmlClassifierProvider (Catalog.ClassificationTypeRegistryService);
+			var buffer = base.CreateTextBuffer (xml);
+			var classifier = new XmlClassifier (buffer, provider.Types);
+			var snapshot = buffer.CurrentSnapshot;
+			var spans = classifier.GetClassificationSpans (new SnapshotSpan (snapshot, 0, snapshot.Length));
+			var actual = string.Join("\r\n", spans
+				.Select (s => $"{s.Span.Span} {s.ClassificationType.Classification}"));
+
+			Assert.AreEqual (expectedClassifications, actual);
 		}
 	}
 }

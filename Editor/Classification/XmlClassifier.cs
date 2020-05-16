@@ -193,6 +193,10 @@ namespace MonoDevelop.Xml.Editor.Classification
 			case '[':
 			case ']':
 			case '-':
+				if (currentState is XmlRootState && currentStateTag == 3) {
+					return XmlComment;
+				}
+
 				return XmlDelimiter;
 			case '\'':
 				return XmlText;
