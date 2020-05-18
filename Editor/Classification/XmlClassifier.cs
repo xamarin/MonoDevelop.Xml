@@ -70,7 +70,7 @@ namespace MonoDevelop.Xml.Editor.Classification
 
 			var result = new List<ClassificationSpan> ();
 
-#if DEBUG
+#if DumpStates
 			var sb = new StringBuilder ();
 #endif
 
@@ -81,7 +81,7 @@ namespace MonoDevelop.Xml.Editor.Classification
 				var currentState = spineParser.CurrentState;
 				int currentStateTag = spineParser.GetContext ().StateTag;
 
-#if DEBUG
+#if DumpStates
 				int previousStateTag = spineParser.GetContext ().StateTag;
 				var previousName = GetStateName (previousState, previousStateTag);
 				var currentName = GetStateName (currentState, currentStateTag);
@@ -107,7 +107,7 @@ namespace MonoDevelop.Xml.Editor.Classification
 				}
 			}
 
-#if DEBUG
+#if DumpStates
 			var dump = sb.ToString ();
 			Console.Out.Write (dump);
 #endif
