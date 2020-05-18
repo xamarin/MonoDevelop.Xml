@@ -9,10 +9,10 @@ namespace MonoDevelop.Xml.Editor.Completion
 	//FIXME: replace this MD shim with something better
 	internal class LoggingService
 	{
-		[Conditional("DEBUG")]
+		[Conditional("DIAG")]
 		internal static void LogWarning (string formatString, params object[] args) => Console.WriteLine (formatString, args);
 
-		[Conditional("DEBUG")]
+		[Conditional("DIAG")]
 		internal static void LogDebug (string formatString, params object[] args) => Console.WriteLine (formatString, args);
 	}
 }
