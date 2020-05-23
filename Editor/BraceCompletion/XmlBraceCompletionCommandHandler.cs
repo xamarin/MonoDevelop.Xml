@@ -52,58 +52,67 @@ namespace MonoDevelop.Xml.Editor.BraceCompletion
 
 		public void ExecuteCommand (TypeCharCommandArgs args, Action nextCommandHandler, CommandExecutionContext executionContext)
 		{
-			var openingPoint = args.TextView.Caret.Position.BufferPosition;
+			var view = args.TextView;
+			var buffer = args.SubjectBuffer;
+			var openingPoint = view.Caret.Position.BufferPosition;
+			char typedChar = args.TypedChar;
 
 			// short circuit on the easy checks
 			ITextSnapshot snapshot = openingPoint.Snapshot;
-			if (!IsQuoteChar (args.TypedChar)
-				|| !IsBraceCompletionEnabled (args.TextView)
-				|| !args.TextView.Selection.IsEmpty
+			if (!IsTriggerChar (typedChar)
+				|| !IsBraceCompletionEnabled (view)
+				|| !view.Selection.IsEmpty
 				|| !XmlBackgroundParser.TryGetParser (snapshot.TextBuffer, out var parser)) {
 				nextCommandHandler ();
 				return;
 			}
 
 			// overtype
-			if (snapshot.Length > openingPoint.Position && snapshot[openingPoint] == args.TypedChar) {
+			if (IsQuoteChar(typedChar) && openingPoint > 0 && snapshot.Length > openingPoint && snapshot[openingPoint] == typedChar) {
 				var spine = parser.GetSpineParser (openingPoint);
-				bool isOverType =
-					// in a quoted value typing its quote char over the end quote
-					spine.GetAttributeValueDelimiter () == args.TypedChar
-					// typing a quote after after the attribute's equals sign
-					|| spine.IsExpectingAttributeQuote ();
-				if (isOverType) {
-					using (var edit = args.SubjectBuffer.CreateEdit ()) {
-						edit.Replace (openingPoint.Position, 1, args.TypedChar.ToString ());
-						edit.Apply ();
+				if (spine.GetAttributeValueDelimiter () == typedChar) {
+					if (snapshot[openingPoint - 1] != typedChar) {
+						// in a quoted value typing its quote char over the end quote, and not immediately after start quote
+						view.Caret.MoveTo (new SnapshotPoint (buffer.CurrentSnapshot, openingPoint + 1));
 					}
-					args.TextView.Caret.MoveTo (new SnapshotPoint (args.SubjectBuffer.CurrentSnapshot, openingPoint.Position + 1));
 					return;
 				}
 			}
 
-			// auto insertion of matching quote
-			if (snapshot.Length == openingPoint.Position || !IsQuoteChar (snapshot[openingPoint])) {
+			nextCommandHandler ();
+
+			if (typedChar == '=') {
+				var position = view.Caret.Position.BufferPosition;
+				snapshot = position.Snapshot;
+				if (position > 0 &&
+					snapshot[position - 1] == '=' &&
+					position < snapshot.Length - 1 &&
+					snapshot[position] is char next &&
+					(next == ' ' || next == '>' || next == '/' || next == '\r' || next == '\n')) {
+					InsertDoubleQuotes ("\"\"", position);
+				}
+			}
+
+			return;
+
+			void InsertDoubleQuotes(string doubleQuotes, SnapshotPoint openingPoint)
+			{
+				var snapshot = openingPoint.Snapshot;
 				var spine = parser.GetSpineParser (openingPoint);
 				// if we're in a state where we expect an attribute value quote
 				// and we're able to walk the parser to the end of of the line without completing the attribute
 				// and without ending in an incomplete attribute value, then it's reasonable to auto insert a matching quote
 				if (spine.IsExpectingAttributeQuote ()) {
 					var att = (XAttribute)spine.Spine.Peek ();
-					if (AdvanceParserUntilConditionOrEol (spine, snapshot, p => att.Value != null, 1000) && att.Value == null && !(spine.CurrentState is XmlAttributeValueState)) {
-						using (var edit = args.SubjectBuffer.CreateEdit ()) {
-							//TODO create an undo transition between the two chars
-							edit.Insert (openingPoint.Position, new string (args.TypedChar, 2));
-							edit.Apply ();
-						}
-						args.TextView.Caret.MoveTo (new SnapshotPoint (args.SubjectBuffer.CurrentSnapshot, openingPoint.Position + 1));
+					bool advanced = AdvanceParserUntilConditionOrEol (spine, snapshot, p => att.Value != null, 1000);
+					if (advanced && att.Value == null && !(spine.CurrentState is XmlAttributeValueState)) {
+						//TODO create an undo transition between the two chars
+						buffer.Insert (openingPoint, doubleQuotes);
+						view.Caret.MoveTo (new SnapshotPoint (buffer.CurrentSnapshot, openingPoint + 1));
 						return;
 					}
 				}
 			}
-
-			nextCommandHandler ();
-			return;
 		}
 
 		static bool IsBraceCompletionEnabled (ITextView textView)
@@ -118,12 +127,13 @@ namespace MonoDevelop.Xml.Editor.BraceCompletion
 					);
 				return prop != null && prop.GetValue (manager) is bool b && b;
 			}
-			return false;
+			return true; // default to true if can't find BraceCompletionManager
 		}
 
 		static System.Reflection.PropertyInfo braceManagerEnabledProp;
 
 		static bool IsQuoteChar (char ch) => ch == '"' || ch == '\'';
+		static bool IsTriggerChar (char ch) => IsQuoteChar (ch) || ch == '=';
 
 		static bool AdvanceParserUntilConditionOrEol (XmlSpineParser parser,
 			ITextSnapshot snapshot,
