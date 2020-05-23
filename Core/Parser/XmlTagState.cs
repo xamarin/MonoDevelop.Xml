@@ -196,7 +196,7 @@ namespace MonoDevelop.Xml.Parser
 						newEl.Attributes.AddAttribute ((XAttribute)att.ShallowCopy ());
 						continue;
 					}
-					if (att.Span.End > position) {
+					if (att.Span.End >= position) {
 						position = att.Span.Start;
 						break;
 					}
