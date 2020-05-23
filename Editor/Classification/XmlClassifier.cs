@@ -121,15 +121,15 @@ namespace MonoDevelop.Xml.Editor.Classification
 			return result;
 		}
 
-		private string GetStateName (XmlParserState previousState, int stateTag)
+		private string GetStateName (XmlParserState state, int stateTag)
 		{
 			string result = null;
 
-			if (previousState.Parent is XmlParserState parent) {
+			if (state.Parent is XmlParserState parent) {
 				result = GetStateName (parent, 0) + ".";
 			}
 
-			result += previousState.ToString ()
+			result += state.ToString ()
 				.Replace ("MonoDevelop.Xml.Parser.", "")
 				.Replace ("Xml", "")
 				.Replace ("State", "");
