@@ -58,10 +58,22 @@ namespace MonoDevelop.Xml.Editor.Classification
 			this.parser = XmlBackgroundParser.GetParser (buffer);
 		}
 
+		private XmlSpineParser spineParser;
+		private ITextSnapshot lastSnapshot;
+
 		public IList<ClassificationSpan> GetClassificationSpans (SnapshotSpan span)
 		{
 			var snapshot = span.Snapshot;
-			var spineParser = parser.GetSpineParser (span.Start);
+
+			if (spineParser == null || lastSnapshot != snapshot || spineParser.Position > span.Start) {
+				spineParser = parser.GetSpineParser (span.Start);
+			} else {
+				for (int i = spineParser.Position; i < span.Start; i++) {
+					spineParser.Push (snapshot[i]);
+				}
+			}
+
+			lastSnapshot = snapshot;
 
 			IClassificationType previousClassification = null;
 			int start = span.Start.Position;

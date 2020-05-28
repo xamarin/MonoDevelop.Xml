@@ -1,9 +1,12 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.MiniEditor;
 using Microsoft.VisualStudio.Text;
+using Microsoft.VisualStudio.Text.Classification;
 using MonoDevelop.Xml.Editor;
 using MonoDevelop.Xml.Editor.Classification;
 using MonoDevelop.Xml.Tests.Completion;
@@ -115,11 +118,61 @@ namespace MonoDevelop.Xml.Tests
 			var buffer = base.CreateTextBuffer (xml);
 			var classifier = new XmlClassifier (buffer, provider.Types);
 			var snapshot = buffer.CurrentSnapshot;
-			var spans = classifier.GetClassificationSpans (new SnapshotSpan (snapshot, 0, snapshot.Length));
-			var actual = string.Join("\r\n", spans
-				.Select (s => $"{s.Span.Span} {s.ClassificationType.Classification}"));
 
+			var classificationSpans = classifier.GetClassificationSpans (new SnapshotSpan (snapshot, 0, snapshot.Length));
+			string actual = GetClassificationsText (classificationSpans);
 			Assert.AreEqual (expectedClassifications, actual);
+
+			var snapshotSpans = SplitIntoSpans (snapshot);
+			classificationSpans = Join (snapshotSpans.Select (s => classifier.GetClassificationSpans (s)));
+			actual = GetClassificationsText (classificationSpans);
+			Assert.AreEqual (expectedClassifications, actual);
+		}
+
+		private static string GetClassificationsText (IList<ClassificationSpan> classificationSpans)
+		{
+			return string.Join ("\r\n", classificationSpans
+				.Select (s => $"{s.Span.Span} {s.ClassificationType.Classification}"));
+		}
+
+		private IList<ClassificationSpan> Join(IEnumerable<IList<ClassificationSpan>> spanLists)
+		{
+			var list = new List<ClassificationSpan> ();
+
+			foreach (var spanList in spanLists) {
+				if (spanList.Count == 0) {
+					continue;
+				}
+
+				int startIndex = 0;
+
+				if (list.Count > 0) {
+					var last = list[list.Count - 1];
+					var firstOfCurrent = spanList[0];
+					if (last.ClassificationType == firstOfCurrent.ClassificationType) {
+						var joinedSpan = new SnapshotSpan (last.Span.Start, last.Span.Length + firstOfCurrent.Span.Length);
+						list[list.Count - 1] = new ClassificationSpan (joinedSpan, last.ClassificationType);
+						startIndex = 1;
+					}
+				}
+
+				for (int i = startIndex; i < spanList.Count; i++) {
+					list.Add (spanList[i]);
+				}
+			}
+
+			return list;
+		}
+
+		private IEnumerable<SnapshotSpan> SplitIntoSpans(ITextSnapshot snapshot, int spanLength = 10)
+		{
+			int start = 0;
+			while (start < snapshot.Length) {
+				int length = Math.Min (spanLength, snapshot.Length - start);
+				var span = new SnapshotSpan (snapshot, start, length);
+				yield return span;
+				start = start + length;
+			}
 		}
 	}
 }
