@@ -65,7 +65,9 @@ namespace MonoDevelop.Xml.Editor.Classification
 		{
 			var snapshot = span.Snapshot;
 
-			if (spineParser == null || lastSnapshot != snapshot || spineParser.Position > span.Start) {
+			// don't reuse the previous span parser if it's not available, is from a different snapshot, is ahead
+			// or is too far behind (it's cheaper to re-retrieve it from scratch than to fast-forward it too far)
+			if (spineParser == null || lastSnapshot != snapshot || spineParser.Position > span.Start || spineParser.Position < span.Start.Position - 10000) {
 				spineParser = parser.GetSpineParser (span.Start);
 			} else {
 				for (int i = spineParser.Position; i < span.Start; i++) {
