@@ -86,9 +86,10 @@ namespace MonoDevelop.Xml.Editor.BraceCompletion
 				snapshot = position.Snapshot;
 				if (position > 0 &&
 					snapshot[position - 1] == '=' &&
-					position < snapshot.Length - 1 &&
-					snapshot[position] is char next &&
-					(next == ' ' || next == '>' || next == '/' || next == '\r' || next == '\n')) {
+					(position == snapshot.Length ||
+						(position < snapshot.Length &&
+						snapshot[position] is char next &&
+						(next == ' ' || next == '>' || next == '/' || next == '\r' || next == '\n')))) {
 					InsertDoubleQuotes ("\"\"", position);
 				}
 			}
@@ -97,20 +98,12 @@ namespace MonoDevelop.Xml.Editor.BraceCompletion
 
 			void InsertDoubleQuotes(string doubleQuotes, SnapshotPoint openingPoint)
 			{
-				var snapshot = openingPoint.Snapshot;
 				var spine = parser.GetSpineParser (openingPoint);
-				// if we're in a state where we expect an attribute value quote
-				// and we're able to walk the parser to the end of of the line without completing the attribute
-				// and without ending in an incomplete attribute value, then it's reasonable to auto insert a matching quote
 				if (spine.IsExpectingAttributeQuote ()) {
-					var att = (XAttribute)spine.Spine.Peek ();
-					bool advanced = AdvanceParserUntilConditionOrEol (spine, snapshot, p => att.Value != null, 1000);
-					if (advanced && att.Value == null && !(spine.CurrentState is XmlAttributeValueState)) {
-						//TODO create an undo transition between the two chars
-						buffer.Insert (openingPoint, doubleQuotes);
-						view.Caret.MoveTo (new SnapshotPoint (buffer.CurrentSnapshot, openingPoint + 1));
-						return;
-					}
+					//TODO create an undo transition between the two chars
+					buffer.Insert (openingPoint, doubleQuotes);
+					view.Caret.MoveTo (new SnapshotPoint (buffer.CurrentSnapshot, openingPoint.Position + 1));
+					return;
 				}
 			}
 		}
@@ -134,27 +127,5 @@ namespace MonoDevelop.Xml.Editor.BraceCompletion
 
 		static bool IsQuoteChar (char ch) => ch == '"' || ch == '\'';
 		static bool IsTriggerChar (char ch) => IsQuoteChar (ch) || ch == '=';
-
-		static bool AdvanceParserUntilConditionOrEol (XmlSpineParser parser,
-			ITextSnapshot snapshot,
-			Func<XmlParser, bool> condition,
-			int maxChars)
-		{
-			if (parser.Position == snapshot.Length) {
-				return true;
-			}
-			int maxPos = Math.Min (snapshot.Length, Math.Max (parser.Position + maxChars, maxChars));
-			while (parser.Position < maxPos) {
-				char c = snapshot[parser.Position];
-				if (c == '\r' || c == '\n') {
-					return true;
-				}
-				parser.Push (c);
-				if (condition (parser)) {
-					return true;
-				}
-			}
-			return false;
-		}
 	}
 }
