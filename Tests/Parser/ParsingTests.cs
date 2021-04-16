@@ -462,5 +462,16 @@ namespace MonoDevelop.Xml.Tests.Parser
 			parser.Parse (docTxt);
 			parser.AssertErrorCount (2);
 		}
-  }
+
+		[Test]
+		public void TwoOpenAngles ()
+		{
+			var docTxt = "<<";
+			var parser = new XmlTreeParser (CreateRootState ());
+			parser.Parse (docTxt);
+			var diagnostic = parser.GetContext ().Diagnostics.Single ();
+			Assert.AreEqual (1, diagnostic.Span.Start);
+			Assert.AreEqual (1, diagnostic.Span.Length);
+		}
+	}
 }
