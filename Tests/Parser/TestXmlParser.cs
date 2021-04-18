@@ -91,9 +91,11 @@ namespace MonoDevelop.Xml.Tests.Parser
 			Assert.AreEqual (asserts.Length, assertNo);
 
 			var diagnostics = context.Diagnostics;
-			foreach (var diagnostic in diagnostics) {
-				Assert.GreaterOrEqual (diagnostic.Span.Start, 0);
-				Assert.GreaterOrEqual (diagnostic.Span.Length, 0);
+			if (diagnostics != null) {
+				foreach (var diagnostic in diagnostics) {
+					Assert.GreaterOrEqual (diagnostic.Span.Start, 0);
+					Assert.GreaterOrEqual (diagnostic.Span.Length, 0);
+				}
 			}
 		}
 
