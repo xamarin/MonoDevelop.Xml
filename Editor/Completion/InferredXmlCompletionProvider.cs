@@ -27,16 +27,23 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.ComponentModel.Composition;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
+using Microsoft.VisualStudio.Text.Editor;
+using Microsoft.VisualStudio.Utilities;
 using MonoDevelop.Xml.Dom;
 
 namespace MonoDevelop.Xml.Editor.Completion
 {
-	class InferredXmlCompletionProvider : IXmlCompletionProvider
+	[Export (typeof (IAsyncCompletionSourceProvider))]
+	[ContentType (XmlContentTypeNames.XmlCore)]
+	[Name ("Xml completion item source")]
+	class InferredXmlCompletionProvider : IXmlCompletionProvider, IAsyncCompletionSourceProvider
 	{
+		XmlCompletionSource source;
 		Dictionary<string, HashSet<string>> elementCompletions = new Dictionary<string, HashSet<string>> ();
 		Dictionary<string, HashSet<string>> attributeCompletions = new Dictionary<string, HashSet<string>> ();
 
@@ -83,12 +90,12 @@ namespace MonoDevelop.Xml.Editor.Completion
 
 		public Task<CompletionContext> GetChildElementCompletionDataAsync (IAsyncCompletionSource source, XmlElementPath path, CancellationToken token)
 		{
-			return GetCompletions (source, elementCompletions, path);
+			return GetCompletionsAsync (source, elementCompletions, path);
 		}
 
 		public Task<CompletionContext> GetAttributeCompletionDataAsync (IAsyncCompletionSource source, XmlElementPath path, CancellationToken token)
 		{
-			return GetCompletions (source, attributeCompletions, path);
+			return GetCompletionsAsync (source, attributeCompletions, path);
 		}
 
 		public Task<CompletionContext> GetAttributeValueCompletionDataAsync (IAsyncCompletionSource source, XmlElementPath path, string name, CancellationToken token)
@@ -98,12 +105,12 @@ namespace MonoDevelop.Xml.Editor.Completion
 
 		public Task<CompletionContext> GetChildElementCompletionDataAsync (IAsyncCompletionSource source, string tagName, CancellationToken token)
 		{
-			return GetCompletions (source, elementCompletions, tagName);
+			return GetCompletionsAsync (source, elementCompletions, tagName);
 		}
 
 		public Task<CompletionContext> GetAttributeCompletionDataAsync (IAsyncCompletionSource source, string tagName, CancellationToken token)
 		{
-			return GetCompletions (source, attributeCompletions, tagName);
+			return GetCompletionsAsync (source, attributeCompletions, tagName);
 		}
 
 		public Task<CompletionContext> GetAttributeValueCompletionDataAsync (IAsyncCompletionSource source, string tagName, string name, CancellationToken token)
@@ -111,7 +118,7 @@ namespace MonoDevelop.Xml.Editor.Completion
 			return Task.FromResult (CompletionContext.Empty);
 		}
 
-		static Task<CompletionContext> GetCompletions (IAsyncCompletionSource source, Dictionary<string, HashSet<string>> map, string tagName)
+		static Task<CompletionContext> GetCompletionsAsync (IAsyncCompletionSource source, Dictionary<string, HashSet<string>> map, string tagName)
 		{
 			var items = ImmutableArray<CompletionItem>.Empty;
 			HashSet<string> values;
@@ -122,11 +129,17 @@ namespace MonoDevelop.Xml.Editor.Completion
 			return Task.FromResult (context);
 		}
 
-		static Task<CompletionContext> GetCompletions (IAsyncCompletionSource source, Dictionary<string, HashSet<string>> map, XmlElementPath path)
+		static Task<CompletionContext> GetCompletionsAsync (IAsyncCompletionSource source, Dictionary<string, HashSet<string>> map, XmlElementPath path)
 		{
 			if (path == null || path.Elements.Count == 0)
 				return Task.FromResult (CompletionContext.Empty);
-			return GetCompletions (source, map, path.Elements[path.Elements.Count - 1].Name);
+			return GetCompletionsAsync (source, map, path.Elements[path.Elements.Count - 1].Name);
+		}
+
+		public IAsyncCompletionSource GetOrCreate (ITextView textView)
+		{
+			source = new InferredXmlCompletionSource (textView);
+			return source;
 		}
 	}
 }

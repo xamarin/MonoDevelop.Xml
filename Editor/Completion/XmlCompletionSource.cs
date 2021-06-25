@@ -29,6 +29,11 @@ namespace MonoDevelop.Xml.Editor.Completion
 			XmlParser = XmlBackgroundParser.GetParser (textView.TextBuffer);
 			TextView = textView;
 			InitializeBuiltinItems ();
+
+			// test
+			sampleItems = ImmutableArray.Create (
+				new CompletionItem ("Hello", this),
+				new CompletionItem ("World", this));
 		}
 
 		public async virtual Task<CompletionContext> GetCompletionContextAsync (
@@ -139,6 +144,8 @@ namespace MonoDevelop.Xml.Editor.Completion
 			return CompletionStartData.DoesNotParticipateInCompletion;
 		}
 
+		private ImmutableArray<CompletionItem> sampleItems;
+
 		protected virtual Task<CompletionContext> GetElementCompletionsAsync (
 			IAsyncCompletionSession session,
 			SnapshotPoint triggerLocation,
@@ -146,7 +153,8 @@ namespace MonoDevelop.Xml.Editor.Completion
 			bool includeBracket,
 			CancellationToken token
 			)
-			=> Task.FromResult (CompletionContext.Empty);
+			//=> Task.FromResult (CompletionContext.Empty);
+			=> Task.FromResult (new CompletionContext (sampleItems));
 
 		protected virtual Task<CompletionContext> GetAttributeCompletionsAsync (
 			IAsyncCompletionSession session,
