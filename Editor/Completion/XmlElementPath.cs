@@ -31,7 +31,7 @@ namespace MonoDevelop.Xml.Editor.Completion
 	/// Represents the path to an xml element starting from the root of the
 	/// document.
 	/// </summary>
-	class XmlElementPath
+	public class XmlElementPath
 	{
 		readonly List<QualifiedName> elements;
 		XmlNamespacePrefixMap nsMap = new XmlNamespacePrefixMap ();
