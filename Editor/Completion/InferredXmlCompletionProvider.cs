@@ -38,9 +38,9 @@ using MonoDevelop.Xml.Dom;
 
 namespace MonoDevelop.Xml.Editor.Completion
 {
-	[Export (typeof (IAsyncCompletionSourceProvider))]
-	[ContentType (XmlContentTypeNames.XmlCore)]
-	[Name ("Xml completion item source")]
+	//[Export (typeof (IAsyncCompletionSourceProvider))]
+	//[ContentType (XmlContentTypeNames.XmlCore)]
+	//[Name ("Xml completion item source")]
 	class InferredXmlCompletionProvider : IXmlCompletionProvider, IAsyncCompletionSourceProvider
 	{
 		XmlCompletionSource source;

@@ -13,14 +13,15 @@ namespace MonoDevelop.Xml.Editor
 	//[Name ("Test xml completion item source")]
 	public class TestCompletionSourceProvider : IAsyncCompletionSourceProvider
 	{
-		Lazy<TestCompletionItemSource> source = new Lazy<TestCompletionItemSource> (() => new TestCompletionItemSource ());
+		//Lazy<TestCompletionItemSource> source = new Lazy<TestCompletionItemSource> (() => new TestCompletionItemSource ());
 		public TestCompletionSourceProvider ()
 		{
 		}
 
 		public IAsyncCompletionSource GetOrCreate (ITextView textView)
 		{
-			return source.Value;
+			//return source.Value;
+			return null;
 		}
 	}
 }

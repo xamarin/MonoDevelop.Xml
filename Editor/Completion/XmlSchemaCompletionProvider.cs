@@ -22,6 +22,7 @@
 // THE SOFTWARE.
 
 using System;
+using System.ComponentModel.Composition;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -30,6 +31,8 @@ using System.Xml;
 using System.Xml.Schema;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
+using Microsoft.VisualStudio.Text.Editor;
+using Microsoft.VisualStudio.Utilities;
 using MonoDevelop.Xml.Editor.Completion;
 
 namespace MonoDevelop.Xml.Editor.Completion
@@ -37,7 +40,10 @@ namespace MonoDevelop.Xml.Editor.Completion
 	/// <summary>
 	/// Holds the completion (intellisense) data for an xml schema.
 	/// </summary>
-	class XmlSchemaCompletionProvider : IXmlCompletionProvider
+	[Export (typeof (IAsyncCompletionSourceProvider))]
+	[ContentType (XmlContentTypeNames.XmlCore)]
+	[Name ("XmlSchemaCompletionProvider")]
+	class XmlSchemaCompletionProvider : IXmlCompletionProvider, IAsyncCompletionSourceProvider
 	{
 		string namespaceUri = String.Empty;
 		XmlSchema schema = null;
@@ -45,6 +51,8 @@ namespace MonoDevelop.Xml.Editor.Completion
 		string baseUri = string.Empty;
 		bool readOnly = false;
 		bool loaded = false;
+
+		static string testFilename = "/Users/allisonkim/vsmac/main/external/MonoDevelop.Xml/Editor/Completion/snippetformat.xsd";
 
 		/// <summary>
 		/// Stores attributes that have been prohibited whilst the code
@@ -54,8 +62,11 @@ namespace MonoDevelop.Xml.Editor.Completion
 
 		#region Constructors
 
-		public XmlSchemaCompletionProvider ()
+		public XmlSchemaCompletionProvider () : this(String.Empty, testFilename)
 		{
+			// TODO: Handle when no schema is provided -> inferred schema?
+			// use a default xsd for testing
+			//var completion = Directory.GetFiles ("/Users/allisonkim/vsmac/main/external/MonoDevelop.Xml/Editor/Completion");
 		}
 
 		/// <summary>
@@ -91,6 +102,15 @@ namespace MonoDevelop.Xml.Editor.Completion
 			if (!lazyLoadFile)
 				using (var reader = new StreamReader (fileName, true))
 					ReadSchema (baseUri, reader);
+		}
+
+		#endregion
+
+		#region Provider
+
+		public IAsyncCompletionSource GetOrCreate (ITextView textView)
+		{
+			return new TestCompletionItemSource(textView, schema);
 		}
 
 		#endregion
@@ -773,7 +793,7 @@ namespace MonoDevelop.Xml.Editor.Completion
 				GetAttributeCompletionData (data, group.Attributes);
 		}
 
-		static XmlSchemaComplexType FindNamedType (XmlSchema schema, XmlQualifiedName name)
+		public static XmlSchemaComplexType FindNamedType (XmlSchema schema, XmlQualifiedName name)
 		{
 			if (name == null)
 				return null;
